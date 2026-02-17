@@ -4,3 +4,4 @@ forge-std/=lib/forge-std/src/
 @openzeppelin-contracts/=lib/openzeppelin-contracts/
 @openzeppelin/=lib/openzeppelin-contracts/contracts/
 reactive-lib/=lib/reactive-lib/src/
+solmate/=lib/solmate/src/
