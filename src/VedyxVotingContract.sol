@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {Ownable} from "@openzeppelin-contracts/contracts/access/Ownable.sol";
+import {AccessControl} from "@openzeppelin-contracts/contracts/access/AccessControl.sol";
 import {IERC20} from "@openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
@@ -39,7 +40,7 @@ error InsufficientKarma();
  * • Time-bound voting: Each vote has a configurable duration
  * ──────────────────────────────────────────────────────────────────────────────
  */
-contract VedyxVotingContract is Ownable, ReentrancyGuard {
+contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl {
     using FixedPointMathLib for uint256;
     using FixedPointMathLib for int256;
 
@@ -59,6 +60,17 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard {
 
     /// @notice Maximum squared karma value to prevent overflow
     uint256 private constant MAX_SQUARED_KARMA = 100000000;
+
+    // ─── Role Constants ───────────────────────────────────────────────────
+
+    /// @notice Role for governance operations (critical parameters)
+    bytes32 public constant GOVERNANCE_ROLE = keccak256("GOVERNANCE_ROLE");
+
+    /// @notice Role for parameter administration (day-to-day tuning)
+    bytes32 public constant PARAMETER_ADMIN_ROLE = keccak256("PARAMETER_ADMIN_ROLE");
+
+    /// @notice Role for treasury operations (financial management)
+    bytes32 public constant TREASURY_ROLE = keccak256("TREASURY_ROLE");
 
     // ─── State Variables ──────────────────────────────────────────────────
 
@@ -256,6 +268,12 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard {
         karmaReward = 10;
         karmaPenalty = 5;
         minimumKarmaToVote = -50; // Default threshold
+
+        // Grant all roles to deployer initially
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(GOVERNANCE_ROLE, msg.sender);
+        _grantRole(PARAMETER_ADMIN_ROLE, msg.sender);
+        _grantRole(TREASURY_ROLE, msg.sender);
     }
 
     // ─── Staking Functions ────────────────────────────────────────────────
@@ -664,7 +682,7 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard {
      * @notice Update the callback authorizer address
      * @param newAuthorizer New authorizer address
      */
-    function setCallbackAuthorizer(address newAuthorizer) external onlyOwner {
+    function setCallbackAuthorizer(address newAuthorizer) external onlyRole(GOVERNANCE_ROLE) {
         if (newAuthorizer == address(0)) revert InvalidAddress();
         callbackAuthorizer = newAuthorizer;
         emit CallbackAuthorizerUpdated(newAuthorizer);
@@ -674,7 +692,7 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard {
      * @notice Update minimum stake requirement
      * @param newMinimum New minimum stake amount
      */
-    function setMinimumStake(uint256 newMinimum) external onlyOwner {
+    function setMinimumStake(uint256 newMinimum) external onlyRole(GOVERNANCE_ROLE) {
         minimumStake = newMinimum;
         emit MinimumStakeUpdated(newMinimum);
     }
@@ -683,7 +701,7 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard {
      * @notice Update voting duration
      * @param newDuration New duration in seconds
      */
-    function setVotingDuration(uint256 newDuration) external onlyOwner {
+    function setVotingDuration(uint256 newDuration) external onlyRole(GOVERNANCE_ROLE) {
         votingDuration = newDuration;
         emit VotingDurationUpdated(newDuration);
     }
@@ -692,7 +710,7 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard {
      * @notice Update penalty percentage
      * @param newPercentage New percentage in basis points
      */
-    function setPenaltyPercentage(uint256 newPercentage) external onlyOwner {
+    function setPenaltyPercentage(uint256 newPercentage) external onlyRole(GOVERNANCE_ROLE) {
         if (newPercentage > 5000) revert InvalidFeePercentage();
         penaltyPercentage = newPercentage;
         emit PenaltyPercentageUpdated(newPercentage);
@@ -702,7 +720,7 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard {
      * @notice Update karma reward amount
      * @param newReward New karma reward
      */
-    function setKarmaReward(uint256 newReward) external onlyOwner {
+    function setKarmaReward(uint256 newReward) external onlyRole(PARAMETER_ADMIN_ROLE) {
         karmaReward = newReward;
     }
 
@@ -710,7 +728,7 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard {
      * @notice Update karma penalty amount
      * @param newPenalty New karma penalty
      */
-    function setKarmaPenalty(uint256 newPenalty) external onlyOwner {
+    function setKarmaPenalty(uint256 newPenalty) external onlyRole(PARAMETER_ADMIN_ROLE) {
         karmaPenalty = newPenalty;
     }
 
@@ -718,7 +736,7 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard {
      * @notice Update minimum karma threshold required to vote
      * @param newMinimumKarma New minimum karma threshold (typically negative, e.g., -50)
      */
-    function setMinimumKarmaToVote(int256 newMinimumKarma) external onlyOwner {
+    function setMinimumKarmaToVote(int256 newMinimumKarma) external onlyRole(GOVERNANCE_ROLE) {
         minimumKarmaToVote = newMinimumKarma;
         emit MinimumKarmaToVoteUpdated(newMinimumKarma);
     }
@@ -729,7 +747,7 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard {
      */
     function setFinalizationRewardPercentage(
         uint256 newPercentage
-    ) external onlyOwner {
+    ) external onlyRole(PARAMETER_ADMIN_ROLE) {
         if (newPercentage > 1000) revert InvalidFeePercentage(); // Max 10%
         // newPercentage cannot be >= finalizationFeePercentage
         if (newPercentage >= finalizationFeePercentage)
@@ -865,7 +883,7 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard {
      * @notice Update treasury address
      * @param newTreasury New treasury address
      */
-    function setTreasury(address newTreasury) external onlyOwner {
+    function setTreasury(address newTreasury) external onlyRole(TREASURY_ROLE) {
         if (newTreasury == address(0)) revert InvalidTreasury();
         treasury = newTreasury;
         emit TreasuryUpdated(newTreasury);
@@ -877,7 +895,7 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard {
      */
     function setFinalizationFeePercentage(
         uint256 newFeePercentage
-    ) external onlyOwner {
+    ) external onlyRole(TREASURY_ROLE) {
         if (newFeePercentage > 1000) revert InvalidFeePercentage(); // Max 10%
         if (newFeePercentage <= finalizationRewardPercentage)
             revert InvalidFeePercentage(); // newFeePercentage cannot be <= finalizationRewardPercentage.
@@ -890,7 +908,7 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard {
      * @dev Only callable by owner
      * @param amount Amount of fees to transfer
      */
-    function transferFeesToTreasury(uint256 amount) external onlyOwner {
+    function transferFeesToTreasury(uint256 amount) external onlyRole(TREASURY_ROLE) {
         if (amount == 0) revert InvalidAmount();
         if (amount > totalFeesCollected) revert InvalidAmount();
 
