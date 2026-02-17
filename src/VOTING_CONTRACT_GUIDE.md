@@ -54,11 +54,23 @@ The `VedyxVotingContract` is a decentralized governance system that enables comm
 - Maximum reward capped at 10% for safety
 
 ### ✅ 7. Fee Management System
-- Finalization fee percentage configurable by owner (max 10%)
+- Finalization fee percentage configurable by treasury role (max 10%)
 - Fees collected from penalties during vote finalization
 - Fee is deducted from total penalties before distributing to correct voters
 - Treasury system for fee collection and management
-- Owner can transfer collected fees to treasury
+- Treasury role can transfer collected fees to treasury
+
+### ✅ 8. Role-Based Access Control (RBAC)
+- **OpenZeppelin AccessControl** integration for granular permission management
+- **Three specialized roles** for different operational responsibilities:
+  - `GOVERNANCE_ROLE`: Critical protocol parameters and security settings
+  - `PARAMETER_ADMIN_ROLE`: Day-to-day operational parameter tuning
+  - `TREASURY_ROLE`: Financial operations and fee management
+- **DEFAULT_ADMIN_ROLE**: Meta-role for managing other roles (grant/revoke)
+- **Flexible deployment**: All roles initially granted to deployer
+- **Progressive decentralization**: Roles can be transferred to DAOs, multi-sigs, or specialized teams
+- **Role separation**: Each role has isolated permissions, preventing single point of failure
+- **Backward compatible**: Owner retains all permissions initially
 
 ## Architecture
 
@@ -242,37 +254,65 @@ function getVoters(uint256 votingId) external view returns (address[] memory)
 
 ### Admin Functions
 
-```solidity
-// Update callback authorizer
-function setCallbackAuthorizer(address newAuthorizer) external onlyOwner
+#### GOVERNANCE_ROLE Functions (Critical Protocol Parameters)
 
-// Update minimum stake
-function setMinimumStake(uint256 newMinimum) external onlyOwner
+```solidity
+// Update callback authorizer (Reactive Network bridge)
+function setCallbackAuthorizer(address newAuthorizer) external onlyRole(GOVERNANCE_ROLE)
+
+// Update minimum stake requirement
+function setMinimumStake(uint256 newMinimum) external onlyRole(GOVERNANCE_ROLE)
 
 // Update voting duration
-function setVotingDuration(uint256 newDuration) external onlyOwner
+function setVotingDuration(uint256 newDuration) external onlyRole(GOVERNANCE_ROLE)
 
-// Update penalty percentage
-function setPenaltyPercentage(uint256 newPercentage) external onlyOwner
+// Update penalty percentage for incorrect voters
+function setPenaltyPercentage(uint256 newPercentage) external onlyRole(GOVERNANCE_ROLE)
 
-// Update karma rewards/penalties
-function setKarmaReward(uint256 newReward) external onlyOwner
-function setKarmaPenalty(uint256 newPenalty) external onlyOwner
+// Update minimum karma threshold for voting eligibility
+function setMinimumKarmaToVote(int256 newMinimumKarma) external onlyRole(GOVERNANCE_ROLE)
+```
 
-// Update minimum karma threshold for voting
-function setMinimumKarmaToVote(int256 newMinimumKarma) external onlyOwner
+#### PARAMETER_ADMIN_ROLE Functions (Operational Tuning)
+
+```solidity
+// Update karma reward for correct votes
+function setKarmaReward(uint256 newReward) external onlyRole(PARAMETER_ADMIN_ROLE)
+
+// Update karma penalty for incorrect votes
+function setKarmaPenalty(uint256 newPenalty) external onlyRole(PARAMETER_ADMIN_ROLE)
 
 // Update finalization reward percentage (max 10%)
-function setFinalizationRewardPercentage(uint256 newPercentage) external onlyOwner
+function setFinalizationRewardPercentage(uint256 newPercentage) external onlyRole(PARAMETER_ADMIN_ROLE)
+```
 
+#### TREASURY_ROLE Functions (Financial Management)
+
+```solidity
 // Update treasury address
-function setTreasury(address newTreasury) external onlyOwner
+function setTreasury(address newTreasury) external onlyRole(TREASURY_ROLE)
 
 // Update finalization fee percentage (max 10%)
-function setFinalizationFeePercentage(uint256 newFeePercentage) external onlyOwner
+function setFinalizationFeePercentage(uint256 newFeePercentage) external onlyRole(TREASURY_ROLE)
 
 // Transfer collected fees to treasury
-function transferFeesToTreasury(uint256 amount) external onlyOwner
+function transferFeesToTreasury(uint256 amount) external onlyRole(TREASURY_ROLE)
+```
+
+#### Role Management Functions (DEFAULT_ADMIN_ROLE)
+
+```solidity
+// Grant a role to an address
+function grantRole(bytes32 role, address account) external onlyRole(DEFAULT_ADMIN_ROLE)
+
+// Revoke a role from an address
+function revokeRole(bytes32 role, address account) external onlyRole(DEFAULT_ADMIN_ROLE)
+
+// Renounce a role (self-revoke)
+function renounceRole(bytes32 role, address account) external
+
+// Check if an address has a specific role
+function hasRole(bytes32 role, address account) external view returns (bool)
 ```
 
 ## Data Structures
@@ -484,7 +524,12 @@ console.log("Your accuracy:", accuracy / 100, "%");
 
 ### 2. Access Control
 - Only authorized callback address can trigger `tagSuspicious()`
-- Owner-only functions for parameter updates
+- **Role-based access control** using OpenZeppelin AccessControl
+  - GOVERNANCE_ROLE for critical protocol parameters
+  - PARAMETER_ADMIN_ROLE for operational tuning
+  - TREASURY_ROLE for financial management
+  - DEFAULT_ADMIN_ROLE for role administration
+- Role separation prevents single point of failure
 - Maximum penalty cap (50%) to prevent excessive slashing
 - Karma threshold prevents users with karma < -50(Configurable) from voting
 
@@ -501,6 +546,268 @@ console.log("Your accuracy:", accuracy / 100, "%");
 - Zero address checks
 - Amount validation
 - Voting ID existence checks
+
+## Role-Based Access Control (RBAC)
+
+### Overview
+
+The VedyxVotingContract implements OpenZeppelin's AccessControl for granular permission management. This allows for:
+- **Separation of concerns** across different operational areas
+- **Progressive decentralization** by transferring roles to DAOs or multi-sigs
+- **Reduced attack surface** - compromised key only affects one role
+- **Flexible governance** models
+
+### Role Definitions
+
+#### 1. GOVERNANCE_ROLE
+**Purpose**: Critical protocol parameters and security settings
+
+**Permissions**:
+- `setCallbackAuthorizer()` - Update Reactive Network bridge address
+- `setMinimumStake()` - Update minimum stake requirement
+- `setVotingDuration()` - Update voting period duration
+- `setPenaltyPercentage()` - Update penalty for incorrect voters
+- `setMinimumKarmaToVote()` - Update karma threshold for voting eligibility
+
+**Recommended Holder**: DAO multi-sig or governance contract
+
+**Rationale**: These parameters affect protocol security and economics. Changes should require community consensus or multi-sig approval.
+
+#### 2. PARAMETER_ADMIN_ROLE
+**Purpose**: Day-to-day operational parameter tuning
+
+**Permissions**:
+- `setKarmaReward()` - Update karma reward for correct votes
+- `setKarmaPenalty()` - Update karma penalty for incorrect votes
+- `setFinalizationRewardPercentage()` - Update finalizer reward percentage
+
+**Recommended Holder**: Operations team or parameter optimization multi-sig
+
+**Rationale**: These parameters may need frequent adjustment based on protocol performance and don't affect core security.
+
+#### 3. TREASURY_ROLE
+**Purpose**: Financial operations and fee management
+
+**Permissions**:
+- `setTreasury()` - Update treasury address
+- `setFinalizationFeePercentage()` - Update finalization fee percentage
+- `transferFeesToTreasury()` - Execute fee transfers to treasury
+
+**Recommended Holder**: Treasury multi-sig or financial operations team
+
+**Rationale**: Separates financial operations from governance and parameters. Allows dedicated treasury management.
+
+#### 4. DEFAULT_ADMIN_ROLE
+**Purpose**: Meta-role for managing other roles
+
+**Permissions**:
+- `grantRole()` - Grant roles to addresses
+- `revokeRole()` - Revoke roles from addresses
+- Admin over all other roles
+
+**Recommended Holder**: Timelock contract or highest-level governance multi-sig
+
+**Rationale**: Controls who can manage roles. Should be the most secured role.
+
+### Role Constants
+
+```solidity
+bytes32 public constant GOVERNANCE_ROLE = keccak256("GOVERNANCE_ROLE");
+bytes32 public constant PARAMETER_ADMIN_ROLE = keccak256("PARAMETER_ADMIN_ROLE");
+bytes32 public constant TREASURY_ROLE = keccak256("TREASURY_ROLE");
+bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00; // OpenZeppelin default
+```
+
+### Initial Setup
+
+On deployment, all roles are granted to the deployer:
+
+```solidity
+constructor(...) {
+    // ... other initialization
+    
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(GOVERNANCE_ROLE, msg.sender);
+    _grantRole(PARAMETER_ADMIN_ROLE, msg.sender);
+    _grantRole(TREASURY_ROLE, msg.sender);
+}
+```
+
+### Usage Examples
+
+#### Example 1: Initial Deployment (Centralized)
+
+```solidity
+// Deployer has all roles initially
+votingContract.setMinimumStake(200 ether);     // ✅ Works (has GOVERNANCE_ROLE)
+votingContract.setKarmaReward(20);             // ✅ Works (has PARAMETER_ADMIN_ROLE)
+votingContract.setTreasury(newTreasury);       // ✅ Works (has TREASURY_ROLE)
+```
+
+#### Example 2: Transfer Governance to DAO
+
+```solidity
+address daoMultisig = 0x...; // DAO multi-sig address
+
+// Grant governance role to DAO
+votingContract.grantRole(GOVERNANCE_ROLE, daoMultisig);
+
+// Revoke from deployer for full decentralization
+votingContract.revokeRole(GOVERNANCE_ROLE, deployer);
+
+// Now only DAO can call governance functions
+vm.prank(daoMultisig);
+votingContract.setMinimumStake(200 ether); // ✅ Works
+
+vm.prank(deployer);
+votingContract.setMinimumStake(200 ether); // ❌ Reverts (no longer has role)
+```
+
+#### Example 3: Separate Roles for Different Teams
+
+```solidity
+address daoMultisig = 0x...;        // Governance
+address opsTeam = 0x...;            // Operations
+address treasuryMultisig = 0x...;   // Treasury
+
+// Grant different roles to different teams
+votingContract.grantRole(GOVERNANCE_ROLE, daoMultisig);
+votingContract.grantRole(PARAMETER_ADMIN_ROLE, opsTeam);
+votingContract.grantRole(TREASURY_ROLE, treasuryMultisig);
+
+// Revoke all roles from deployer
+votingContract.revokeRole(GOVERNANCE_ROLE, deployer);
+votingContract.revokeRole(PARAMETER_ADMIN_ROLE, deployer);
+votingContract.revokeRole(TREASURY_ROLE, deployer);
+// Keep DEFAULT_ADMIN_ROLE for emergency role management
+
+// Each team has isolated permissions
+vm.prank(daoMultisig);
+votingContract.setMinimumStake(200 ether);     // ✅ Governance function
+
+vm.prank(opsTeam);
+votingContract.setKarmaReward(20);             // ✅ Parameter admin function
+
+vm.prank(treasuryMultisig);
+votingContract.transferFeesToTreasury(100);    // ✅ Treasury function
+
+// Cross-role calls fail
+vm.prank(opsTeam);
+votingContract.setMinimumStake(300 ether);     // ❌ Reverts (not governance)
+```
+
+#### Example 4: Grant Multiple Roles to One Address
+
+```solidity
+address superAdmin = 0x...;
+
+// Grant multiple roles to same address
+votingContract.grantRole(GOVERNANCE_ROLE, superAdmin);
+votingContract.grantRole(PARAMETER_ADMIN_ROLE, superAdmin);
+votingContract.grantRole(TREASURY_ROLE, superAdmin);
+
+// superAdmin can now call all functions
+vm.prank(superAdmin);
+votingContract.setMinimumStake(200 ether);     // ✅ Works
+votingContract.setKarmaReward(20);             // ✅ Works
+votingContract.setTreasury(newTreasury);       // ✅ Works
+```
+
+#### Example 5: Check Role Membership
+
+```solidity
+// Check if address has a specific role
+bool hasGovernance = votingContract.hasRole(GOVERNANCE_ROLE, daoMultisig);
+bool hasParameterAdmin = votingContract.hasRole(PARAMETER_ADMIN_ROLE, opsTeam);
+bool hasTreasury = votingContract.hasRole(TREASURY_ROLE, treasuryMultisig);
+
+console.log("DAO has governance:", hasGovernance);           // true
+console.log("Ops has parameter admin:", hasParameterAdmin);  // true
+console.log("Treasury has treasury:", hasTreasury);          // true
+```
+
+#### Example 6: Renounce Role (Self-Revoke)
+
+```solidity
+// Address can renounce their own role
+vm.prank(opsTeam);
+votingContract.renounceRole(PARAMETER_ADMIN_ROLE, opsTeam);
+
+// opsTeam no longer has the role
+bool hasRole = votingContract.hasRole(PARAMETER_ADMIN_ROLE, opsTeam);
+console.log("Ops still has role:", hasRole); // false
+```
+
+### Progressive Decentralization Path
+
+**Phase 1: Launch (Centralized)**
+- Deployer holds all roles
+- Quick parameter adjustments possible
+- Suitable for initial testing and tuning
+
+**Phase 2: Multi-sig Transition**
+```solidity
+// Transfer to multi-sigs
+votingContract.grantRole(GOVERNANCE_ROLE, governanceMultisig);
+votingContract.grantRole(PARAMETER_ADMIN_ROLE, opsMultisig);
+votingContract.grantRole(TREASURY_ROLE, treasuryMultisig);
+
+// Revoke from deployer
+votingContract.revokeRole(GOVERNANCE_ROLE, deployer);
+votingContract.revokeRole(PARAMETER_ADMIN_ROLE, deployer);
+votingContract.revokeRole(TREASURY_ROLE, deployer);
+```
+
+**Phase 3: DAO Governance**
+```solidity
+// Transfer governance to DAO
+votingContract.grantRole(GOVERNANCE_ROLE, daoGovernor);
+votingContract.revokeRole(GOVERNANCE_ROLE, governanceMultisig);
+
+// Add timelock for critical changes
+votingContract.grantRole(DEFAULT_ADMIN_ROLE, timelockController);
+votingContract.revokeRole(DEFAULT_ADMIN_ROLE, deployer);
+```
+
+**Phase 4: Full Decentralization**
+- All roles managed by DAO
+- Timelock delays on critical changes
+- Community voting on all parameter updates
+
+### Security Best Practices
+
+1. **Multi-sig Requirements**: Use multi-sig wallets (e.g., Gnosis Safe) for all role holders
+2. **Timelock Delays**: Add timelock contracts for governance changes (e.g., 48-hour delay)
+3. **Role Separation**: Never grant all roles to a single EOA in production
+4. **Emergency Procedures**: Keep DEFAULT_ADMIN_ROLE highly secured for emergency role management
+5. **Audit Trail**: Monitor all role changes via events
+6. **Regular Reviews**: Periodically review role assignments and revoke unnecessary permissions
+
+### Role Permission Matrix
+
+| Function | GOVERNANCE | PARAMETER_ADMIN | TREASURY | DEFAULT_ADMIN |
+|----------|------------|-----------------|----------|---------------|
+| `setCallbackAuthorizer` | ✅ | ❌ | ❌ | ❌ |
+| `setMinimumStake` | ✅ | ❌ | ❌ | ❌ |
+| `setVotingDuration` | ✅ | ❌ | ❌ | ❌ |
+| `setPenaltyPercentage` | ✅ | ❌ | ❌ | ❌ |
+| `setMinimumKarmaToVote` | ✅ | ❌ | ❌ | ❌ |
+| `setKarmaReward` | ❌ | ✅ | ❌ | ❌ |
+| `setKarmaPenalty` | ❌ | ✅ | ❌ | ❌ |
+| `setFinalizationRewardPercentage` | ❌ | ✅ | ❌ | ❌ |
+| `setTreasury` | ❌ | ❌ | ✅ | ❌ |
+| `setFinalizationFeePercentage` | ❌ | ❌ | ✅ | ❌ |
+| `transferFeesToTreasury` | ❌ | ❌ | ✅ | ❌ |
+| `grantRole` | ❌ | ❌ | ❌ | ✅ |
+| `revokeRole` | ❌ | ❌ | ❌ | ✅ |
+
+### Events
+
+```solidity
+event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender);
+event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender);
+event RoleAdminChanged(bytes32 indexed role, bytes32 indexed previousAdminRole, bytes32 indexed newAdminRole);
+```
 
 ## Events
 
