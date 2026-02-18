@@ -41,7 +41,7 @@ contract VedyxVotingContractTest is Test {
     uint256 public constant INITIAL_BALANCE = 10000 ether;
     
     event Staked(address indexed staker, uint256 amount);
-    event Unstaked(address indexed staker, uint256 amount, uint256 fee);
+    event Unstaked(address indexed staker, uint256 amount);
     event VotingStarted(uint256 indexed votingId, address indexed suspiciousAddress, uint256 endTime);
     event VoteCast(uint256 indexed votingId, address indexed voter, bool votedFor, uint256 votingPower);
     event VotingFinalized(uint256 indexed votingId, address indexed suspiciousAddress, bool isSuspicious, uint256 votesFor, uint256 votesAgainst);
@@ -217,21 +217,18 @@ contract VedyxVotingContractTest is Test {
         vm.startPrank(user1);
         votingContract.stake(stakeAmount);
         
-        uint256 expectedFee = 0; // No unstaking fee anymore
-        uint256 expectedReturn = unstakeAmount; // Full amount returned
-        
         uint256 balanceBefore = stakingToken.balanceOf(user1);
         
         vm.expectEmit(true, false, false, true);
-        emit Unstaked(user1, expectedReturn, expectedFee);
+        emit Unstaked(user1, unstakeAmount);
         
         votingContract.unstake(unstakeAmount);
         vm.stopPrank();
         
         VedyxVotingContract.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
         assertEq(stakeUser1.stakedAmount, stakeAmount - unstakeAmount);
-        assertEq(stakingToken.balanceOf(user1), balanceBefore + expectedReturn);
-        assertEq(votingContract.totalFeesCollected(), expectedFee);
+        assertEq(stakingToken.balanceOf(user1), balanceBefore + unstakeAmount);
+        assertEq(votingContract.totalFeesCollected(), 0 ether);
     }
     
     function test_Unstake_RevertWhen_ZeroAmount() public {
@@ -636,7 +633,8 @@ contract VedyxVotingContractTest is Test {
         vm.prank(user2);
         votingContract.stake(300 ether);
         vm.prank(user3);
-        votingContract.stake(200 ether);
+        uint256 user3StakeBefore = 200 ether;
+        votingContract.stake(user3StakeBefore);
         
         vm.prank(callbackAuthorizer);
         uint256 votingId = votingContract.tagSuspicious(suspiciousAddr, 1, address(0x123), 1000 ether, 18, 12345);
@@ -648,7 +646,7 @@ contract VedyxVotingContractTest is Test {
         vm.prank(user3);
         votingContract.castVote(votingId, false);
         
-        uint256 user3StakeBefore = 200 ether;
+
         uint256 expectedPenalty = (user3StakeBefore * PENALTY_PERCENTAGE) / 10000;
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
