@@ -4,6 +4,24 @@
 
 The `VedyxVotingContract` is a decentralized governance system that enables community-driven validation of suspicious addresses detected by the Reactive Network. It implements a sophisticated stake-based voting mechanism with karma tracking and penalty systems.
 
+## Modular Architecture
+
+The voting contract is built with a modular architecture for maintainability and gas efficiency:
+
+```
+src/voting-contract/
+├── VedyxVotingContract.sol          # Main contract
+├── interfaces/
+│   └── IVedyxVoting.sol             # Contract interface
+└── libraries/
+    ├── VedyxErrors.sol              # Custom errors
+    ├── VedyxTypes.sol               # Data structures
+    ├── VotingPowerLib.sol           # Voting power calculations
+    └── VotingResultsLib.sol         # Results processing
+```
+
+**See [voting-contract/README.md](./voting-contract/README.md) for detailed architecture documentation.**
+
 ## Key Features
 
 ### ✅ 1. Stake-Based Voting Power
@@ -72,6 +90,17 @@ The `VedyxVotingContract` is a decentralized governance system that enables comm
 - **Role separation**: Each role has isolated permissions, preventing single point of failure
 - **Backward compatible**: Owner retains all permissions initially
 
+### ✅ 9. Verdict-Based Auto-Classification System
+- **Intelligent repeat offender handling**: Addresses with confirmed suspicious verdicts are auto-marked on subsequent incidents
+- **No redundant voting**: Prevents voter fatigue by skipping votes for known bad actors
+- **Pattern-based classification**: One vote covers a pattern of behavior for an address
+- **Cross-chain consistency**: Verdicts are permanent and apply across all chains (same address = same user)
+- **Re-evaluation for clean addresses**: Addresses previously voted clean can be re-evaluated with new evidence
+- **Governance override**: False positive verdicts can be cleared by governance role
+- **Audit trail**: Incident count preserved even after verdict clearing for transparency
+- **Self-voting prevention**: Users cannot vote on their own address to prevent conflicts of interest
+- **Gas optimized**: Efficient verdict lookups with minimal storage reads
+
 ## Architecture
 
 ```
@@ -91,13 +120,15 @@ The `VedyxVotingContract` is a decentralized governance system that enables comm
 │  │                                                     │    │
 │  │  tagSuspicious() ← Callback from Reactive Network │    │
 │  │         ↓                                          │    │
-│  │  Start Voting Process (votingId)                  │    │
+│  │  Check Verdict History                            │    │
+│  │    ├─ Previous Suspicious → Auto-Mark (skip vote) │    │
+│  │    └─ No/Clean Verdict → Start Voting (votingId)  │    │
 │  │         ↓                                          │    │
 │  │  Community votes (stake-weighted)                 │    │
 │  │         ↓                                          │    │
-│  │  Finalize → Apply Penalties/Rewards               │    │
+│  │  Finalize → Record Verdict                        │    │
 │  │         ↓                                          │    │
-│  │  Update Karma & Slash Bad Voters                  │    │
+│  │  Apply Penalties/Rewards & Update Karma           │    │
 │  └────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -809,6 +840,270 @@ event RoleRevoked(bytes32 indexed role, address indexed account, address indexed
 event RoleAdminChanged(bytes32 indexed role, bytes32 indexed previousAdminRole, bytes32 indexed newAdminRole);
 ```
 
+## Verdict-Based Auto-Classification System
+
+### Overview
+
+The verdict system implements intelligent repeat offender handling to prevent voter fatigue and reduce gas costs. Once an address is confirmed suspicious through community voting, subsequent incidents are automatically marked without requiring new votes.
+
+### How It Works
+
+**Core Principle**: One vote covers a pattern of behavior for an address.
+
+```
+First Incident → Community Vote → Verdict Recorded
+Subsequent Incidents → Auto-Marked (if suspicious) OR New Vote (if clean)
+```
+
+### Verdict Logic Flow
+
+```solidity
+function tagSuspicious(address suspiciousAddress, ...) returns (uint256 votingId) {
+    // Check historical verdict
+    if (address has previous verdict && verdict is SUSPICIOUS) {
+        // AUTO-MARK: Skip voting, increment incident count
+        return 0; // No voting created
+    } else {
+        // CREATE VOTING: No verdict OR previous verdict was clean
+        return votingId; // New voting process
+    }
+}
+```
+
+### Verdict States
+
+| State | Description | Next Tag Behavior |
+|-------|-------------|-------------------|
+| **No Verdict** | Address never tagged before | Create new voting |
+| **Suspicious Verdict** | Community confirmed malicious | Auto-mark (skip voting) |
+| **Clean Verdict** | Community confirmed innocent | Create new voting (new evidence) |
+| **Cleared Verdict** | Governance cleared false positive | Create new voting (fresh evaluation) |
+
+### Data Structure
+
+```solidity
+struct AddressVerdict {
+    bool hasVerdict;           // Has been judged before?
+    bool isSuspicious;         // Last verdict (true = suspicious)
+    uint256 lastVotingId;      // Most recent voting ID
+    uint256 verdictTimestamp;  // When verdict was recorded
+    uint256 totalIncidents;    // Total times tagged (never reset)
+}
+```
+
+### Usage Examples
+
+#### Example 1: First Offense → Suspicious Verdict
+
+```solidity
+// Step 1: First time address is tagged
+vm.prank(reactiveNetwork);
+uint256 votingId = votingContract.tagSuspicious(
+    0xBAD_ADDRESS,
+    1,           // chainId
+    0x123,       // contract
+    1000 ether,  // value
+    18,          // decimals
+    12345        // txHash
+);
+// votingId = 1 (voting created)
+
+// Step 2: Community votes
+voter1.castVote(votingId, true);  // Suspicious
+voter2.castVote(votingId, true);  // Suspicious
+voter3.castVote(votingId, false); // Not suspicious
+
+// Step 3: Finalize after voting period
+vm.warp(block.timestamp + 7 days);
+votingContract.finalizeVoting(votingId);
+// Consensus: SUSPICIOUS (2 vs 1)
+// Verdict recorded: hasVerdict=true, isSuspicious=true
+
+// Check verdict
+(bool hasVerdict, bool isSuspicious, , , uint256 incidents) = 
+    votingContract.getAddressVerdict(0xBAD_ADDRESS);
+// hasVerdict = true
+// isSuspicious = true
+// incidents = 1
+```
+
+#### Example 2: Repeat Offender → Auto-Marked
+
+```solidity
+// Address 0xBAD_ADDRESS already has suspicious verdict from Example 1
+
+// New incident detected
+vm.prank(reactiveNetwork);
+uint256 votingId2 = votingContract.tagSuspicious(
+    0xBAD_ADDRESS,  // Same address
+    1,
+    0x456,          // Different contract
+    2000 ether,
+    18,
+    67890
+);
+// votingId2 = 0 (AUTO-MARKED, no voting created)
+
+// Event emitted:
+// AddressAutoMarkedSuspicious(0xBAD_ADDRESS, 2, 1, 67890)
+//   - incidentNumber: 2
+//   - previousVotingId: 1 (reference to original vote)
+//   - txHash: 67890
+
+// Check verdict
+(, , , , uint256 incidents) = votingContract.getAddressVerdict(0xBAD_ADDRESS);
+// incidents = 2 (incremented)
+
+// Check history
+uint256[] memory history = votingContract.getAddressVotingHistory(0xBAD_ADDRESS);
+// history = [1, 0]
+//   - 1 = first voting ID
+//   - 0 = auto-marked (no voting)
+```
+
+#### Example 3: Clean Address → Re-Evaluation
+
+```solidity
+// Step 1: First incident - voted clean
+votingId1 = votingContract.tagSuspicious(0xGOOD_ADDRESS, ...);
+voter1.castVote(votingId1, false); // Not suspicious
+voter2.castVote(votingId1, false); // Not suspicious
+votingContract.finalizeVoting(votingId1);
+// Verdict: isSuspicious = false
+
+// Step 2: New incident with new evidence
+votingId2 = votingContract.tagSuspicious(0xGOOD_ADDRESS, ...);
+// votingId2 = 2 (NEW VOTING CREATED)
+// Reason: Previous verdict was clean, detector has new evidence
+
+// Community can re-evaluate with new information
+voter1.castVote(votingId2, true);  // Now suspicious
+voter2.castVote(votingId2, true);
+votingContract.finalizeVoting(votingId2);
+// New verdict: isSuspicious = true
+
+// Step 3: Future incidents now auto-marked
+votingId3 = votingContract.tagSuspicious(0xGOOD_ADDRESS, ...);
+// votingId3 = 0 (auto-marked)
+```
+
+#### Example 4: Governance Override (False Positive)
+
+```solidity
+// Address was incorrectly marked suspicious
+// Governance can clear the verdict
+
+vm.prank(governanceMultisig);
+votingContract.clearAddressVerdict(0xFALSE_POSITIVE);
+
+// Verdict cleared:
+(bool hasVerdict, , , , uint256 incidents) = 
+    votingContract.getAddressVerdict(0xFALSE_POSITIVE);
+// hasVerdict = false (cleared)
+// incidents = 3 (preserved for audit trail)
+
+// Next tag creates fresh voting
+votingId = votingContract.tagSuspicious(0xFALSE_POSITIVE, ...);
+// votingId > 0 (new voting, fresh evaluation)
+```
+
+### Self-Voting Prevention
+
+Users cannot vote on their own address to prevent conflicts of interest:
+
+```solidity
+// Suspicious address tries to vote on own case
+vm.prank(0xBAD_ADDRESS);
+votingContract.castVote(votingId, false); // Try to vote "not suspicious"
+// ❌ Reverts with: CannotVoteOnOwnAddress()
+
+// Other users can vote normally
+vm.prank(voter1);
+votingContract.castVote(votingId, true); // ✅ Works
+```
+
+### View Functions
+
+```solidity
+// Get full verdict details
+function getAddressVerdict(address addr) external view returns (
+    bool hasVerdict,
+    bool isSuspicious,
+    uint256 lastVotingId,
+    uint256 verdictTimestamp,
+    uint256 totalIncidents
+);
+
+// Quick check: will address be auto-marked?
+function willAutoMark(address addr) external view returns (bool);
+// Returns true if address has suspicious verdict
+```
+
+### Governance Functions
+
+```solidity
+// Clear incorrect verdict (GOVERNANCE_ROLE only)
+function clearAddressVerdict(address suspiciousAddress) external;
+```
+
+**Use Cases for Clearing:**
+- False positive from detector
+- Community voted incorrectly
+- Address ownership changed
+- Protocol upgrade/migration
+
+### Events
+
+```solidity
+// When address is auto-marked (no voting)
+event AddressAutoMarkedSuspicious(
+    address indexed suspiciousAddress,
+    uint256 indexed incidentNumber,
+    uint256 previousVotingId,
+    uint256 txHash
+);
+
+// When verdict is recorded after voting
+event VerdictRecorded(
+    address indexed suspiciousAddress,
+    uint256 indexed votingId,
+    bool isSuspicious,
+    uint256 timestamp
+);
+
+// When governance clears a verdict
+event VerdictCleared(
+    address indexed suspiciousAddress,
+    address indexed clearedBy
+);
+```
+
+### Benefits
+
+1. **Reduced Voter Fatigue**: No need to re-vote on known bad actors
+2. **Gas Efficiency**: Auto-marking saves ~325,000 gas per incident
+3. **Faster Response**: Instant marking vs 7-day voting period
+4. **Cross-Chain Consistency**: Same verdict applies across all chains
+5. **Audit Trail**: Full incident history preserved
+6. **Flexibility**: Governance can correct mistakes
+
+### Design Rationale
+
+**Why permanent verdicts?**
+- Same address = same user across chains
+- Prevents gaming through time delays
+- Maintains consistent reputation
+
+**Why allow re-evaluation for clean addresses?**
+- Detector might have new evidence
+- Behavior patterns can change
+- Gives benefit of doubt initially
+
+**Why preserve incident count after clearing?**
+- Transparency and audit trail
+- Shows governance intervention
+- Helps identify problematic patterns
+
 ## Events
 
 ```solidity
@@ -828,15 +1123,9 @@ event TreasuryUpdated(address indexed newTreasury);
 event FinalizationFeeUpdated(uint256 newFeePercentage);
 ```
 
-## Gas Optimization Tips
-
-1. **Batch Operations**: Finalize multiple votings in a single transaction if possible
-2. **Off-chain Monitoring**: Use events to track voting status off-chain
-3. **Efficient Queries**: Use view functions to check state before transactions
-4. **Karma Calculation**: Cached in voting power calculation for efficiency
-
 ## Testing Checklist
 
+### Core Functionality
 - [ ] Stake tokens successfully
 - [ ] Unstake only unlocked amounts
 - [ ] Callback creates voting process
@@ -849,6 +1138,20 @@ event FinalizationFeeUpdated(uint256 newFeePercentage);
 - [ ] Multiple concurrent votings work
 - [ ] Access control enforced
 - [ ] Reentrancy protection works
+
+### Verdict System
+- [ ] First offense creates voting
+- [ ] Suspicious verdict recorded after finalization
+- [ ] Clean verdict recorded after finalization
+- [ ] Repeat offender auto-marked (no voting)
+- [ ] Clean address allows re-evaluation
+- [ ] Governance can clear false positive verdicts
+- [ ] Incident count preserved after clearing
+- [ ] Self-voting prevented
+- [ ] Others can vote when self-voting blocked
+- [ ] `willAutoMark()` returns correct status
+- [ ] `getAddressVerdict()` returns accurate data
+- [ ] Multiple addresses have independent verdicts
 
 ## Penalty System Details
 
