@@ -2,7 +2,8 @@
 pragma solidity ^0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {VedyxVotingContract} from "../src/VedyxVotingContract.sol";
+import {VedyxVotingContract} from "../src/voting-contract/VedyxVotingContract.sol";
+import {VedyxTypes} from "../src/voting-contract/libraries/VedyxTypes.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 
 error InvalidAmount();
@@ -88,7 +89,7 @@ contract NegativeKarmaTest is Test {
         votingContract.finalizeVoting(votingId1);
 
         // user1 should have negative karma now
-        VedyxVotingContract.Staker memory staker = votingContract.getStakerInfo(
+        VedyxTypes.Staker memory staker = votingContract.getStakerInfo(
             user1
         );
         assertEq(staker.karmaPoints, -5); // Lost 5 karma
@@ -146,7 +147,7 @@ contract NegativeKarmaTest is Test {
 
         // user1 should have very negative karma
         // Get actual stake after penalties (500 - 10% * 5 = 500 - 250 = 250 ether)
-        VedyxVotingContract.Staker memory staker = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory staker = votingContract.getStakerInfo(user1);
         assertEq(staker.karmaPoints, -25); // Lost 5 karma per vote * 5 votes
 
         // Voting power should be reduced significantly with exponential penalty
@@ -190,7 +191,7 @@ contract NegativeKarmaTest is Test {
             vm.warp(block.timestamp + 1);
         }
 
-        VedyxVotingContract.Staker memory staker = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory staker = votingContract.getStakerInfo(user1);
         assertEq(staker.karmaPoints, -10);
 
         // Vote correctly once
@@ -213,7 +214,7 @@ contract NegativeKarmaTest is Test {
         votingContract.finalizeVoting(votingId);
 
         // Karma should improve
-        VedyxVotingContract.Staker memory stakeAfter = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeAfter = votingContract.getStakerInfo(user1);
         assertEq(stakeAfter.karmaPoints, 0); // -10 + 10 = 0
     }
 
@@ -246,7 +247,7 @@ contract NegativeKarmaTest is Test {
         }
 
         // user1 should have karma below threshold
-        VedyxVotingContract.Staker memory staker = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory staker = votingContract.getStakerInfo(user1);
         assertEq(staker.karmaPoints, -55); // 11 * -5
         assertLt(staker.karmaPoints, -50); // Below MINIMUM_KARMA_TO_VOTE
 

@@ -2,7 +2,8 @@
 pragma solidity ^0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {VedyxVotingContract} from "../src/VedyxVotingContract.sol";
+import {VedyxVotingContract} from "../src/voting-contract/VedyxVotingContract.sol";
+import {VedyxTypes} from "../src/voting-contract/libraries/VedyxTypes.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 
 error InvalidAmount();

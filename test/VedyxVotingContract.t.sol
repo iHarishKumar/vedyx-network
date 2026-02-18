@@ -2,7 +2,8 @@
 pragma solidity ^0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {VedyxVotingContract} from "../src/VedyxVotingContract.sol";
+import {VedyxVotingContract} from "../src/voting-contract/VedyxVotingContract.sol";
+import {VedyxTypes} from "../src/voting-contract/libraries/VedyxTypes.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 
 // Import custom errors
@@ -173,7 +174,7 @@ contract VedyxVotingContractTest is Test {
         vm.prank(user1);
         votingContract.stake(stakeAmount);
         
-        VedyxVotingContract.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
         assertEq(stakeUser1.stakedAmount, stakeAmount);
         assertEq(stakeUser1.lockedAmount, 0);
         assertEq(stakingToken.balanceOf(address(votingContract)), stakeAmount);
@@ -185,7 +186,7 @@ contract VedyxVotingContractTest is Test {
         votingContract.stake(300 ether);
         vm.stopPrank();
         
-        VedyxVotingContract.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
         assertEq(stakeUser1.stakedAmount, 500 ether);
     }
     
@@ -225,7 +226,7 @@ contract VedyxVotingContractTest is Test {
         votingContract.unstake(unstakeAmount);
         vm.stopPrank();
         
-        VedyxVotingContract.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
         assertEq(stakeUser1.stakedAmount, stakeAmount - unstakeAmount);
         assertEq(stakingToken.balanceOf(user1), balanceBefore + unstakeAmount);
         assertEq(votingContract.totalFeesCollected(), 0 ether);
@@ -298,7 +299,7 @@ contract VedyxVotingContractTest is Test {
         assertEq(votingId, 1);
         
         (
-            VedyxVotingContract.SuspiciousReport memory report,
+            VedyxTypes.SuspiciousReport memory report,
             uint256 startTime,
             uint256 endTime,
             uint256 votesFor,
@@ -372,7 +373,7 @@ contract VedyxVotingContractTest is Test {
         assertTrue(votedFor);
         assertEq(votingPower, 500 ether);
         
-        VedyxVotingContract.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
         assertEq(stakeUser1.lockedAmount, MINIMUM_STAKE);
         assertEq(stakeUser1.totalVotes, 1);
     }
@@ -396,7 +397,7 @@ contract VedyxVotingContractTest is Test {
         
         votingContract.finalizeVoting(votingId1);
         
-        VedyxVotingContract.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
         assertEq(stakeUser1.karmaPoints, 10);
         
         vm.prank(callbackAuthorizer);
@@ -656,7 +657,7 @@ contract VedyxVotingContractTest is Test {
         
         votingContract.finalizeVoting(votingId);
         
-        VedyxVotingContract.Staker memory stakeUser3 = votingContract.getStakerInfo(user3);
+        VedyxTypes.Staker memory stakeUser3 = votingContract.getStakerInfo(user3);
         assertEq(stakeUser3.stakedAmount, user3StakeBefore - expectedPenalty);
     }
     
@@ -677,7 +678,7 @@ contract VedyxVotingContractTest is Test {
         
         votingContract.finalizeVoting(votingId);
         
-        VedyxVotingContract.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
         assertEq(stakeUser1.karmaPoints, 10);
         assertEq(stakeUser1.totalVotes, 1);
         assertEq(stakeUser1.correctVotes, 1);
@@ -701,7 +702,7 @@ contract VedyxVotingContractTest is Test {
         
         votingContract.finalizeVoting(votingId);
         
-        VedyxVotingContract.Staker memory stakeUser2 = votingContract.getStakerInfo(user2);
+        VedyxTypes.Staker memory stakeUser2 = votingContract.getStakerInfo(user2);
         assertEq(stakeUser2.karmaPoints, -5);
     }
     
@@ -715,13 +716,13 @@ contract VedyxVotingContractTest is Test {
         vm.prank(user1);
         votingContract.castVote(votingId, true);
         
-        VedyxVotingContract.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
         assertEq(stakeUser1.lockedAmount, MINIMUM_STAKE);
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
         
-        VedyxVotingContract.Staker memory stakeUser1After = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1After = votingContract.getStakerInfo(user1);
         assertEq(stakeUser1After.lockedAmount, 0);
     }
     
@@ -1009,7 +1010,7 @@ contract VedyxVotingContractTest is Test {
         vm.prank(user1);
         votingContract.castVote(votingId2, false);
         
-        VedyxVotingContract.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
         assertEq(stakeUser1.lockedAmount, MINIMUM_STAKE * 2);
     }
     
@@ -1044,7 +1045,7 @@ contract VedyxVotingContractTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
         
-        VedyxVotingContract.Staker memory stakeUser2 = votingContract.getStakerInfo(user2);
+        VedyxTypes.Staker memory stakeUser2 = votingContract.getStakerInfo(user2);
         assertGe(stakeUser2.stakedAmount, 0);
     }
     
@@ -1064,7 +1065,7 @@ contract VedyxVotingContractTest is Test {
         vm.prank(user1);
         votingContract.unstake(100 ether);
         
-        VedyxVotingContract.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
         assertLt(stakeUser1.stakedAmount, 500 ether);
     }
     
