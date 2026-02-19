@@ -85,7 +85,8 @@ interface IVedyxVoting {
             uint256 votesFor,
             uint256 votesAgainst,
             bool finalized,
-            bool isSuspicious
+            bool isSuspicious,
+            bool isInconclusive
         );
 
     function getVote(

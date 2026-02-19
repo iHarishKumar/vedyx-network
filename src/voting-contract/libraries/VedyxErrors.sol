@@ -35,4 +35,7 @@ library VedyxErrors {
 
     // ─── Verdict Errors ───────────────────────────────────────────────────
     error NoVerdictToClear();
+
+    // ─── Quorum Errors ────────────────────────────────────────────────────
+    error InvalidQuorumValue();
 }

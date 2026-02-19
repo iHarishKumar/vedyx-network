@@ -54,6 +54,8 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
     uint256 public totalFeesCollected;
     uint256 public finalizationRewardPercentage;
     int256 public minimumKarmaToVote;
+    uint256 public minimumVoters;
+    uint256 public minimumTotalVotingPower;
     uint256 private votingIdCounter;
 
     // ─── Mappings ─────────────────────────────────────────────────────────
@@ -70,6 +72,9 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
     event PenaltyPercentageUpdated(uint256 newPercentage);
     event MinimumKarmaToVoteUpdated(int256 newMinimumKarma);
     event FinalizationRewardPercentageUpdated(uint256 newPercentage);
+    event MinimumVotersUpdated(uint256 newMinimumVoters);
+    event MinimumTotalVotingPowerUpdated(uint256 newMinimumPower);
+    event VotingInconclusive(uint256 indexed votingId, address indexed suspiciousAddress, uint256 voterCount, uint256 totalVotingPower);
 
     // ─── Modifiers ────────────────────────────────────────────────────────
     modifier onlyCallbackAuthorizer() {
@@ -104,6 +109,8 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
         karmaReward = 10;
         karmaPenalty = 5;
         minimumKarmaToVote = -50;
+        minimumVoters = 3;
+        minimumTotalVotingPower = 1000 ether;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(GOVERNANCE_ROLE, msg.sender);
@@ -257,6 +264,33 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
 
         voting.finalized = true;
 
+        // Check quorum requirements
+        bool meetsVoterQuorum = voting.voters.length >= minimumVoters;
+        bool meetsVotingPowerQuorum = voting.totalVotingPower >= minimumTotalVotingPower;
+
+        // If quorum not met, mark as inconclusive and return early
+        if (!meetsVoterQuorum || !meetsVotingPowerQuorum) {
+            voting.isInconclusive = true;
+            _removeActiveVoting(votingId);
+            
+            // Unlock stakes for all voters without penalties or rewards
+            for (uint256 i = 0; i < voting.voters.length; i++) {
+                address voter = voting.voters[i];
+                VedyxTypes.Staker storage staker = stakers[voter];
+                staker.lockedAmount -= minimumStake;
+            }
+            
+            emit VotingInconclusive(
+                votingId,
+                voting.report.suspiciousAddress,
+                voting.voters.length,
+                voting.totalVotingPower
+            );
+            return;
+        }
+
+        // Quorum met, proceed with normal finalization
+
         bool consensus = voting.votesFor > voting.votesAgainst;
         voting.isSuspicious = consensus;
 
@@ -402,6 +436,18 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
         emit VerdictCleared(suspiciousAddress, msg.sender);
     }
 
+    function setMinimumVoters(uint256 newMinimumVoters) external onlyRole(GOVERNANCE_ROLE) {
+        if (newMinimumVoters == 0) revert VedyxErrors.InvalidQuorumValue();
+        minimumVoters = newMinimumVoters;
+        emit MinimumVotersUpdated(newMinimumVoters);
+    }
+
+    function setMinimumTotalVotingPower(uint256 newMinimumPower) external onlyRole(GOVERNANCE_ROLE) {
+        if (newMinimumPower == 0) revert VedyxErrors.InvalidQuorumValue();
+        minimumTotalVotingPower = newMinimumPower;
+        emit MinimumTotalVotingPowerUpdated(newMinimumPower);
+    }
+
     function setFinalizationRewardPercentage(
         uint256 newPercentage
     ) external onlyRole(PARAMETER_ADMIN_ROLE) {
@@ -450,7 +496,8 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
             uint256 votesFor,
             uint256 votesAgainst,
             bool finalized,
-            bool isSuspicious
+            bool isSuspicious,
+            bool isInconclusive
         )
     {
         VedyxTypes.Voting storage voting = votings[votingId];
@@ -461,7 +508,8 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
             voting.votesFor,
             voting.votesAgainst,
             voting.finalized,
-            voting.isSuspicious
+            voting.isSuspicious,
+            voting.isInconclusive
         );
     }
 

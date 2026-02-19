@@ -32,6 +32,7 @@ library VedyxTypes {
         uint256 totalVotingPower;
         bool finalized;
         bool isSuspicious;
+        bool isInconclusive;
         mapping(address => Vote) votes;
         address[] voters;
     }
