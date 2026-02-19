@@ -3,7 +3,21 @@
 **Decentralized security consensus through stake-backed governance.**
 
 ## 📋 Overview
-Vedyx Protocol is a **decentralized security system** that combines **exploit detection**, **community governance**, and **stake-based voting** to identify and respond to suspicious blockchain activity across multiple EVM chains.
+Vedyx is a **community-driven address reputation platform** that tracks and flags addresses involved in exploits **after they occur**. Instead of preventing exploits (which happen in various ways), Vedyx focuses on the **aftermath** — when attackers attempt to cash out stolen funds through DEX pools or mixers.
+
+### The Problem
+- Exploits happen in countless ways (flash loans, reentrancy, price manipulation, etc.)
+- **The real vulnerability is the cashout phase** — attackers need to convert stolen assets
+- Current solutions lack community consensus and are centralized
+- No unified dashboard to track exploit addresses across chains
+
+### The Solution
+Vedyx provides:
+1. **One-stop dashboard** to understand exploit addresses and their on-chain activity
+2. **Stake-weighted community voting** to determine address suspiciousness
+3. **Economic disincentives** for attackers trying to manipulate votes (requires massive stake)
+4. **Risk scoring framework** for DeFi protocols to penalize or block suspicious addresses
+5. **Karma-based reputation** ensuring voters are cautious and accurate
 
 ## Documentation
 
@@ -25,18 +39,19 @@ forge script script/Deploy.s.sol --broadcast
 
 ---
 
-## 🏗️ Architecture (3-Layer System)
+## 🏗️ Architecture 
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                          ORIGIN CHAIN (e.g., Ethereum)                   │
 │                                                                           │
 │  ┌──────────────────┐         ┌──────────────────┐                      │
-│  │  DeFi Protocol   │         │  Malicious Actor │                      │
-│  │  (Uniswap, etc.) │         │                  │                      │
+│  │  Exploit Occurs  │         │  Attacker Tries  │                      │
+│  │  (Flash Loan,    │    →    │  to Cash Out     │                      │
+│  │Large Transfers)  │         │  Stolen Funds    │                      │
 │  └────────┬─────────┘         └────────┬─────────┘                      │
 │           │                             │                                │
-│           │ Emits Events                │ Suspicious Transaction         │
+│           │ On-chain Activity           │ Large Transfers/Swaps          │
 │           └─────────────────────────────┘                                │
 │                                 │                                        │
 └─────────────────────────────────┼────────────────────────────────────────┘
@@ -46,8 +61,13 @@ forge script script/Deploy.s.sol --broadcast
 │                         REACTIVE NETWORK                                 │
 │                                                                           │
 │  ┌────────────────────────────────────────────────────────────────┐    │
-│  │           VedyxExploitDetectorRSC (Singleton Hub)              │    │
+│  │           VedyxExploitDetectorRSC (Monitoring Singleton Hub)   │    │
 │  │                                                                 │    │
+│  │  Monitors post-exploit cashout patterns:                       │    │
+│  │  • Large token transfers (potential fund movement)             │    │
+│  │  • Unusual swap patterns (converting stolen assets)            │    │
+│  │  • High-value liquidity operations                             │    │
+│  │  • Rapid cross-protocol fund movement                          │    │
 │  │  ┌──────────────────────────────────────────────────────┐     │    │
 │  │  │           Detector Registry                          │     │    │
 │  │  │  topic_0 → [Detector1, Detector2, Detector3, ...]   │     │    │
@@ -90,15 +110,15 @@ forge script script/Deploy.s.sol --broadcast
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### **Layer 1: Reactive Network (Detection Layer)**
-- **VedyxExploitDetectorRSC** - Singleton reactive smart contract on Reactive Network
-- **Modular Detector System** - Pluggable attack vector detectors via `IAttackVectorDetector` interface
-- **Current Detector**: `LargeTransferDetector` - Monitors ERC20 Transfer events for abnormally large transfers
+### **Layer 1: Reactive Network (Monitoring Layer)**
+- **VedyxExploitDetectorRSC** - Monitors on-chain activity for suspicious patterns
+- **Modular Detector System** - Pluggable pattern detectors via `IAttackVectorDetector` interface
+- **Current Detector**: `LargeTransferDetector` - Flags abnormally large ERC20 transfers (potential cashout attempts)
 - **How it works**:
-  1. Subscribes to high-risk event signatures across multiple chains
+  1. Subscribes to relevant event signatures across multiple chains
   2. ReactVM calls `react()` for every matching log
   3. Delegates to registered detectors based on `topic_0`
-  4. Emits `Callback` to destination chain when threat detected
+  4. Emits `Callback` to destination chain when suspicious pattern detected
 
 ### **Layer 2: Destination Chain (Governance Layer)**
 - **VedyxVotingContract** - Main governance contract with modular architecture
@@ -109,16 +129,19 @@ forge script script/Deploy.s.sol --broadcast
   - [VotingResultsLib.sol](cci:7://file:///Users/harishkumargunjalli/GitHub/vedyx-protocol/src/voting-contract/libraries/VotingResultsLib.sol:0:0-0:0) - Penalty/reward distribution logic
   - [IVedyxVoting.sol](cci:7://file:///Users/harishkumargunjalli/GitHub/vedyx-protocol/src/voting-contract/interfaces/IVedyxVoting.sol:0:0-0:0) - Contract interface
 
-### **Layer 3: Community Voting**
-- **Stake-based voting** - Users stake ERC20 tokens to participate
-- **Karma system** - Tracks voter accuracy
+### **Layer 3: Community Voting (Anti-Manipulation)**
+- **Stake-weighted voting** - More stake = More voting power
+  - **Key Insight**: Attackers would need massive stake to manipulate their own address reputation
+  - If they acquire enough stake to vote themselves "not suspicious", they've essentially bought into the system
+- **Karma system** - Ensures voters are cautious and accurate
   - Correct votes: +10 karma (linear bonus to voting power)
   - Incorrect votes: -5 karma (exponential penalty to voting power)
   - Threshold: -50 karma blocks voting
-- **Penalty/Reward mechanism**:
+- **Economic Disincentives**:
   - Incorrect voters lose 10% of stake
   - Penalties distributed to correct voters proportionally
   - 1% finalization fee goes to treasury
+  - **Result**: Voters are highly cautious, making vote manipulation expensive and risky
 
 ---
 
@@ -240,18 +263,25 @@ test/
 
 ---
 
-## 🔄 Complete Workflow
+## 🔄 Complete Workflow (Post-Exploit)
 
-1. **Detection**: Reactive Network detector identifies suspicious transaction
-2. **Callback**: Detector emits callback to `VedyxVotingContract.tagSuspicious()`
-3. **Voting Initiated**: New voting session created with suspicious address details
-4. **Community Votes**: Stakers cast votes (true = suspicious, false = not suspicious)
-5. **Finalization**: After voting period, anyone can finalize
-6. **Consensus**: Voting power determines outcome (not vote count)
-7. **Penalties Applied**: Incorrect voters lose 10% stake
-8. **Rewards Distributed**: Penalties distributed to correct voters (minus 1% fee)
-9. **Karma Updated**: Correct voters +10 karma, incorrect voters -5 karma
-10. **Verdict Recorded**: Address marked suspicious if consensus agrees
+1. **Exploit Occurs**: Attacker successfully exploits a protocol (various attack vectors)
+2. **Cashout Attempt**: Attacker tries to convert/move stolen funds via DEX swaps or transfers
+3. **Pattern Detection**: Reactive Network monitors flag suspicious on-chain activity (large transfers, unusual swaps)
+4. **Callback**: Detector emits callback to `VedyxVotingContract.tagSuspicious()`
+5. **Voting Initiated**: New voting session created with address details and on-chain evidence
+6. **Community Analysis**: Stakers review on-chain activity via Vedyx dashboard
+7. **Stake-Weighted Voting**: Community votes (true = suspicious, false = not suspicious)
+   - Voting power = stake × karma modifiers
+   - Attackers would need massive stake to manipulate votes
+8. **Finalization**: After voting period, consensus determined by voting power
+9. **Penalties/Rewards**: Incorrect voters lose 10% stake → distributed to correct voters
+10. **Karma Updated**: Correct voters +10 karma, incorrect voters -5 karma
+11. **Verdict Recorded**: Address flagged with suspiciousness score and risk level
+12. **Protocol Integration**: DeFi protocols (Uniswap pools, etc.) can query verdict and apply:
+    - Proportional penalties (higher fees for suspicious addresses)
+    - Complete blocks (prevent trading in protected pools)
+    - Slippage adjustments based on risk score
 
 ---
 
@@ -293,12 +323,14 @@ struct AddressVerdict {
 
 ## 🎯 Design Principles
 
-1. **Modularity** - Libraries separate concerns for gas efficiency and maintainability
-2. **Security-First** - Comprehensive access control and validation
-3. **Community-Driven** - Decentralized decision-making via staking
-4. **Incentive Alignment** - Karma system rewards accuracy
-5. **Cross-Chain** - Reactive Network enables multi-chain monitoring
-6. **Extensibility** - Pluggable detector architecture
+1. **Post-Exploit Focus** - We don't prevent exploits; we track and flag addresses afterward
+2. **Cashout Prevention** - Target the attacker's exit strategy (DEX swaps, mixers)
+3. **Economic Security** - Vote manipulation requires massive stake, making it economically unfeasible
+4. **Community-Driven** - Decentralized consensus, not centralized blacklists
+5. **Transparency** - One-stop dashboard for address reputation and on-chain evidence
+6. **Incentive Alignment** - Karma system ensures voters are cautious and accurate
+7. **Protocol Composability** - Risk scores enable DeFi protocols to make informed decisions
+8. **Cross-Chain** - Reactive Network enables multi-chain address tracking
 
 ---
 
@@ -315,12 +347,31 @@ struct AddressVerdict {
 
 ---
 
-## 🚀 Current Status
+## 🚀 Current Status & Roadmap
 
-- ✅ Modular architecture implemented
-- ✅ All tests passing (134/134)
-- ✅ Documentation updated
-- ✅ Ready for Uniswap V4 hook integration
-- 🔄 Considering: MEV protection, liquidity guard, karma-based fees
+### ✅ Implemented (Phase 1)
+- Modular voting contract architecture
+- Stake-weighted voting with karma system
+- Reactive Network monitoring (LargeTransferDetector)
+- All tests passing (134/134)
+- Economic disincentives for vote manipulation
+
+### 🔄 In Progress (Phase 2)
+- **Vedyx Dashboard** - One-stop interface for address reputation
+  - On-chain activity visualization
+  - Voting history and evidence
+  - Risk score calculation
+- **Additional Detectors** - More cashout pattern monitors
+  - DEX swap pattern detector
+  - Cross-protocol fund movement tracker
+  - Mixer interaction detector
+
+### 📋 Planned (Phase 3)
+- **Protocol Integration Framework**
+  - Uniswap V4 hooks for suspicious address penalties
+  - Risk-based fee adjustments
+  - Pool access controls based on reputation
+- **Advanced Risk Scoring** - Multi-factor address risk assessment
+- **Cross-chain verdict aggregation**
 
 ---

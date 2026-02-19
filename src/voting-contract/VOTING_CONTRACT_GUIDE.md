@@ -2,7 +2,11 @@
 
 ## Overview
 
-The `VedyxVotingContract` is a decentralized governance system that enables community-driven validation of suspicious addresses detected by the Reactive Network. It implements a sophisticated stake-based voting mechanism with karma tracking and penalty systems.
+The `VedyxVotingContract` is a **post-exploit address reputation system** that enables community-driven validation of addresses attempting to cash out stolen funds. After an exploit occurs (which can happen in countless ways), attackers must convert stolen assets through DEX pools or mixers. This is where Vedyx intervenes.
+
+**Key Insight**: We don't prevent exploits. We track addresses **after** exploits occur and flag them during the cashout phase, enabling DeFi protocols to penalize or block suspicious addresses.
+
+The contract implements a sophisticated stake-weighted voting mechanism with economic disincentives for vote manipulation.
 
 ## Modular Architecture
 
@@ -33,8 +37,9 @@ src/voting-contract/
 - Minimum stake requirement configurable by owner
 
 ### ✅ 2. Reactive Network Integration
-- `tagSuspicious()` callback function receives reports from Reactive Network
-- Automatically initiates voting process for each suspicious address
+- `tagSuspicious()` callback receives reports of suspicious cashout patterns
+- Monitors large transfers, unusual swaps, and rapid fund movements
+- Automatically initiates community voting for flagged addresses
 - Tracks complete transaction details (chain ID, contract, value, tx hash)
 
 ### ✅ 3. Multi-Voting Management
@@ -91,13 +96,19 @@ src/voting-contract/
 - **Backward compatible**: Owner retains all permissions initially
 
 ### ✅ 9. Verdict-Based Auto-Classification System
-- **Intelligent repeat offender handling**: Addresses with confirmed suspicious verdicts are auto-marked on subsequent incidents
-- **No redundant voting**: Prevents voter fatigue by skipping votes for known bad actors
-- **Pattern-based classification**: One vote covers a pattern of behavior for an address
-- **Cross-chain consistency**: Verdicts are permanent and apply across all chains (same address = same user)
+- **Intelligent repeat offender handling**: Addresses with confirmed suspicious verdicts are auto-marked on subsequent cashout attempts
+- **No redundant voting**: Prevents voter fatigue by skipping votes for known attackers
+- **Pattern-based classification**: One vote covers a pattern of cashout behavior for an address
+- **Cross-chain consistency**: Verdicts apply across all chains (same address = same attacker)
 - **Re-evaluation for clean addresses**: Addresses previously voted clean can be re-evaluated with new evidence
 - **Governance override**: False positive verdicts can be cleared by governance role
 - **Audit trail**: Incident count preserved even after verdict clearing for transparency
+
+### ✅ 10. Anti-Manipulation Economics
+- **Stake-weighted voting**: Attackers need massive stake to manipulate their own address reputation
+- **Economic disincentive**: If attackers acquire enough stake to vote themselves "clean", they've bought into the system
+- **Penalty risk**: Incorrect voters lose 10% stake + karma damage
+- **Result**: Vote manipulation is economically unfeasible - cheaper to not exploit in the first place
 - **Self-voting prevention**: Users cannot vote on their own address to prevent conflicts of interest
 - **Gas optimized**: Efficient verdict lookups with minimal storage reads
 

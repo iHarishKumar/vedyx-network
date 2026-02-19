@@ -2,7 +2,9 @@
 
 ## Overview
 
-The `VedyxExploitDetectorRSC` contract implements a **singleton pattern** with a modular registry system for attack vector detection. This architecture allows you to easily add new exploit detection strategies without modifying the core contract.
+The `VedyxExploitDetectorRSC` contract implements a **singleton pattern** with a modular registry system for **post-exploit cashout pattern detection**. This architecture monitors on-chain activity **after exploits occur** to identify addresses attempting to cash out stolen funds.
+
+**Important**: This system does NOT prevent exploits. It monitors suspicious patterns (large transfers, unusual swaps, rapid fund movements) that typically occur when attackers try to convert stolen assets through DEX pools or mixers.
 
 ## Architecture
 
@@ -12,7 +14,7 @@ The `VedyxExploitDetectorRSC` contract implements a **singleton pattern** with a
    - Central contract deployed on Reactive Network
    - Manages a registry of attack vector detectors
    - Routes incoming logs to appropriate detectors
-   - Emits callbacks to destination chain
+   - Emits callbacks to destination chain when suspicious patterns detected
 
 2. **IAttackVectorDetector** (Interface)
    - Standard interface for all detector implementations
@@ -20,9 +22,9 @@ The `VedyxExploitDetectorRSC` contract implements a **singleton pattern** with a
    - Ensures compatibility with the singleton hub
 
 3. **Detector Implementations** (Pluggable Modules)
-   - Self-contained detection logic
+   - Self-contained pattern detection logic
    - Can be registered/unregistered dynamically
-   - Examples: `LargeTransferDetector`, `FlashLoanDetector`, etc.
+   - Examples: `LargeTransferDetector` (flags large transfers that may indicate fund movement)
 
 ## How It Works
 
@@ -47,7 +49,7 @@ The `VedyxExploitDetectorRSC` contract implements a **singleton pattern** with a
 │  └────────────────────────────────────────────────────┘    │
 │           ↓                                                 │
 │  ┌─────────────────┐  ┌─────────────────┐                 │
-│  │ LargeTransfer   │  │  FlashLoan      │  ...            │
+│  │ LargeTransfer   │  │  DEX Swap       │  ...            │
 │  │ Detector        │  │  Detector       │                 │
 │  └─────────────────┘  └─────────────────┘                 │
 └─────────────────────────────────────────────────────────────┘
