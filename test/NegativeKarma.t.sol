@@ -26,6 +26,7 @@ contract NegativeKarmaTest is Test {
     address public treasury;
     address public user1;
     address public user2;
+    address public user3;
     address public suspiciousAddr;
 
     uint256 public constant MINIMUM_STAKE = 100 ether;
@@ -40,6 +41,7 @@ contract NegativeKarmaTest is Test {
         treasury = makeAddr("treasury");
         user1 = makeAddr("user1");
         user2 = makeAddr("user2");
+        user3 = makeAddr("user3");
         suspiciousAddr = makeAddr("suspiciousAddr");
 
         stakingToken = new MockERC20("Vedyx Token", "VDX");
@@ -56,10 +58,13 @@ contract NegativeKarmaTest is Test {
 
         stakingToken.mint(user1, INITIAL_BALANCE);
         stakingToken.mint(user2, INITIAL_BALANCE);
+        stakingToken.mint(user3, INITIAL_BALANCE);
 
         vm.prank(user1);
         stakingToken.approve(address(votingContract), type(uint256).max);
         vm.prank(user2);
+        stakingToken.approve(address(votingContract), type(uint256).max);
+        vm.prank(user3);
         stakingToken.approve(address(votingContract), type(uint256).max);
     }
 
@@ -68,6 +73,8 @@ contract NegativeKarmaTest is Test {
         votingContract.stake(500 ether);
         vm.prank(user2);
         votingContract.stake(800 ether);
+        vm.prank(user3);
+        votingContract.stake(300 ether);
 
         // First vote - user1 votes incorrectly
         vm.prank(callbackAuthorizer);
@@ -83,6 +90,8 @@ contract NegativeKarmaTest is Test {
         vm.prank(user1);
         votingContract.castVote(votingId1, false);
         vm.prank(user2);
+        votingContract.castVote(votingId1, true);
+        vm.prank(user3);
         votingContract.castVote(votingId1, true);
 
         vm.warp(block.timestamp + VOTING_DURATION + 1);
@@ -122,6 +131,8 @@ contract NegativeKarmaTest is Test {
         votingContract.stake(500 ether); // Increased stake to handle penalties
         vm.prank(user2);
         votingContract.stake(800 ether);
+        vm.prank(user3);
+        votingContract.stake(300 ether);
 
         // Vote incorrectly multiple times to accumulate negative karma
         for (uint256 i = 0; i < 5; i++) {
@@ -138,6 +149,8 @@ contract NegativeKarmaTest is Test {
             vm.prank(user1);
             votingContract.castVote(votingId, false);
             vm.prank(user2);
+            votingContract.castVote(votingId, true);
+            vm.prank(user3);
             votingContract.castVote(votingId, true);
 
             vm.warp(block.timestamp + VOTING_DURATION + 1);
@@ -168,6 +181,8 @@ contract NegativeKarmaTest is Test {
         votingContract.stake(500 ether);
         vm.prank(user2);
         votingContract.stake(800 ether);
+        vm.prank(user3);
+        votingContract.stake(300 ether);
 
         // Vote incorrectly twice
         for (uint256 i = 0; i < 2; i++) {
@@ -184,6 +199,8 @@ contract NegativeKarmaTest is Test {
             vm.prank(user1);
             votingContract.castVote(loopVotingId, false);
             vm.prank(user2);
+            votingContract.castVote(loopVotingId, true);
+            vm.prank(user3);
             votingContract.castVote(loopVotingId, true);
 
             vm.warp(block.timestamp + VOTING_DURATION + 1);
@@ -209,6 +226,8 @@ contract NegativeKarmaTest is Test {
         votingContract.castVote(votingId, true);
         vm.prank(user2);
         votingContract.castVote(votingId, true);
+        vm.prank(user3);
+        votingContract.castVote(votingId, true);
 
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
@@ -223,6 +242,8 @@ contract NegativeKarmaTest is Test {
         votingContract.stake(500 ether);
         vm.prank(user2);
         votingContract.stake(800 ether);
+        vm.prank(user3);
+        votingContract.stake(300 ether);
 
         // Vote incorrectly 11 times to reach karma threshold of -55 (11 * -5 = -55)
         for (uint256 i = 0; i < 11; i++) {
@@ -239,6 +260,8 @@ contract NegativeKarmaTest is Test {
             vm.prank(user1);
             votingContract.castVote(loopVotingId, false);
             vm.prank(user2);
+            votingContract.castVote(loopVotingId, true);
+            vm.prank(user3);
             votingContract.castVote(loopVotingId, true);
 
             vm.warp(block.timestamp + VOTING_DURATION + 1);

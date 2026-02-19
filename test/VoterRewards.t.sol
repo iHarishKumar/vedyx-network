@@ -87,6 +87,8 @@ contract VoterRewardsTest is Test {
         votingContract.stake(500 ether);
         vm.prank(user2);
         votingContract.stake(300 ether);
+        vm.prank(user3);
+        votingContract.stake(300 ether);
         
         vm.prank(callbackAuthorizer);
         uint256 votingId = votingContract.tagSuspicious(suspiciousAddr, 1, address(0x123), 1000 ether, 18, 12345);
@@ -95,26 +97,31 @@ contract VoterRewardsTest is Test {
         votingContract.castVote(votingId, true);
         vm.prank(user2);
         votingContract.castVote(votingId, false);
+        vm.prank(user3);
+        votingContract.castVote(votingId, true);
         
         uint256 user1StakeBefore = 500 ether;
         uint256 user2StakeBefore = 300 ether;
+        uint256 user3StakeBefore = 300 ether;
         uint256 expectedPenalty = (user2StakeBefore * PENALTY_PERCENTAGE) / 10000; // 30 ether
         uint256 finalizationFee = (expectedPenalty * FINALIZATION_FEE_PERCENTAGE) / 10000; // 1% of penalty
-        uint256 rewardAfterFee = expectedPenalty - finalizationFee; // 29.7 ether
+        uint256 rewardPool = expectedPenalty - finalizationFee; // 29.7 ether
+        
+        // user1 and user3 both voted correctly, so they share the reward proportionally
+        // user1: 500 ether, user3: 300 ether, total: 800 ether
+        uint256 user1Reward = (rewardPool * 500 ether) / 800 ether; // 62.5% of reward
+        uint256 user3Reward = (rewardPool * 300 ether) / 800 ether; // 37.5% of reward
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
-        
-        vm.expectEmit(true, true, false, true);
-        emit VoterRewarded(user1, votingId, rewardAfterFee);
-        
         votingContract.finalizeVoting(votingId);
         
         VedyxTypes.Staker memory stakeUser1After = votingContract.getStakerInfo(user1);
         VedyxTypes.Staker memory stakeUser2After = votingContract.getStakerInfo(user2);
-
+        VedyxTypes.Staker memory stakeUser3After = votingContract.getStakerInfo(user3);
         
-        assertEq(stakeUser1After.stakedAmount, user1StakeBefore + rewardAfterFee);
+        assertEq(stakeUser1After.stakedAmount, user1StakeBefore + user1Reward);
         assertEq(stakeUser2After.stakedAmount, user2StakeBefore - expectedPenalty);
+        assertEq(stakeUser3After.stakedAmount, user3StakeBefore + user3Reward);
     }
     
     function test_RewardDistribution_MultipleCorrectVotersProportional() public {
@@ -204,6 +211,8 @@ contract VoterRewardsTest is Test {
         votingContract.stake(500 ether);
         vm.prank(user2);
         votingContract.stake(300 ether);
+        vm.prank(user3);
+        votingContract.stake(300 ether);
         
         vm.prank(callbackAuthorizer);
         uint256 votingId = votingContract.tagSuspicious(suspiciousAddr, 1, address(0x123), 1000 ether, 18, 12345);
@@ -211,6 +220,8 @@ contract VoterRewardsTest is Test {
         vm.prank(user1);
         votingContract.castVote(votingId, true);
         vm.prank(user2);
+        votingContract.castVote(votingId, true);
+        vm.prank(user3);
         votingContract.castVote(votingId, true);
         
         uint256 user1StakeBefore = 500 ether;
@@ -286,6 +297,8 @@ contract VoterRewardsTest is Test {
         vm.prank(user1);
         votingContract.castVote(votingId1, true);
         vm.prank(user2);
+        votingContract.castVote(votingId1, true);
+        vm.prank(user3);
         votingContract.castVote(votingId1, true);
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
@@ -406,9 +419,11 @@ contract VoterRewardsTest is Test {
         votingContract.setPenaltyPercentage(5000); // 50%
         
         vm.prank(user1);
-        votingContract.stake(500 ether);
+        votingContract.stake(600 ether);
         vm.prank(user2);
         votingContract.stake(150 ether);
+        vm.prank(user3);
+        votingContract.stake(400 ether);
         
         vm.prank(callbackAuthorizer);
         uint256 votingId = votingContract.tagSuspicious(suspiciousAddr, 1, address(0x123), 1000 ether, 18, 12345);
@@ -417,26 +432,34 @@ contract VoterRewardsTest is Test {
         votingContract.castVote(votingId, true);
         vm.prank(user2);
         votingContract.castVote(votingId, false);
+        vm.prank(user3);
+        votingContract.castVote(votingId, true);
         
-        uint256 user1StakeBefore = 500 ether;
+        uint256 user1StakeBefore = 600 ether;
         uint256 user2StakeBefore = 150 ether;
-        uint256 actualPenalty = (user2StakeBefore * 5000) / 10000; // 75 ether
+        uint256 user3StakeBefore = 400 ether;
+        uint256 calculatedPenalty = (user2StakeBefore * 5000) / 10000; // 75 ether
         
-        // Penalty is capped at available stake
-        if (actualPenalty > user2StakeBefore) {
-            actualPenalty = user2StakeBefore;
-        }
+        // Penalty is capped at available stake (150 ether is available, 75 ether penalty doesn't exceed it)
+        uint256 actualPenalty = calculatedPenalty; // 75 ether
         
         uint256 finalizationFee = (actualPenalty * FINALIZATION_FEE_PERCENTAGE) / 10000; // 1% of penalty
-        uint256 rewardAfterFee = actualPenalty - finalizationFee;
+        uint256 rewardPool = actualPenalty - finalizationFee;
+        
+        // user1 and user3 both voted correctly, so they share the reward proportionally
+        // user1: 600 ether, user3: 400 ether, total: 1000 ether
+        uint256 user1Reward = (rewardPool * 600 ether) / 1000 ether; // 60% of reward
+        uint256 user3Reward = (rewardPool * 400 ether) / 1000 ether; // 40% of reward
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
         
         VedyxTypes.Staker memory stakeUser1After = votingContract.getStakerInfo(user1);
         VedyxTypes.Staker memory stakeUser2After = votingContract.getStakerInfo(user2);
+        VedyxTypes.Staker memory stakeUser3After = votingContract.getStakerInfo(user3);
         
-        assertEq(stakeUser1After.stakedAmount, user1StakeBefore + rewardAfterFee);
+        assertEq(stakeUser1After.stakedAmount, user1StakeBefore + user1Reward);
         assertEq(stakeUser2After.stakedAmount, user2StakeBefore - actualPenalty);
+        assertEq(stakeUser3After.stakedAmount, user3StakeBefore + user3Reward);
     }
 }

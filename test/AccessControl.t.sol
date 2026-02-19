@@ -22,6 +22,9 @@ contract AccessControlTest is Test {
     address public unauthorizedUser;
     address public callbackAuthorizer;
     address public treasury;
+    address public user1;
+    address public user2;
+    address public user3;
 
     uint256 constant MINIMUM_STAKE = 100 ether;
     uint256 constant VOTING_DURATION = 7 days;
@@ -62,6 +65,9 @@ contract AccessControlTest is Test {
         unauthorizedUser = makeAddr("unauthorized");
         callbackAuthorizer = makeAddr("callbackAuthorizer");
         treasury = makeAddr("treasury");
+        user1 = makeAddr("user1");
+        user2 = makeAddr("user2");
+        user3 = makeAddr("user3");
 
         stakingToken = new MockERC20("Staking Token", "STK");
 
@@ -74,6 +80,26 @@ contract AccessControlTest is Test {
             treasury,
             FINALIZATION_FEE_PERCENTAGE
         );
+
+        // Mint and approve tokens for users
+        stakingToken.mint(user1, 10000 ether);
+        stakingToken.mint(user2, 10000 ether);
+        stakingToken.mint(user3, 10000 ether);
+
+        vm.prank(user1);
+        stakingToken.approve(address(votingContract), type(uint256).max);
+        vm.prank(user2);
+        stakingToken.approve(address(votingContract), type(uint256).max);
+        vm.prank(user3);
+        stakingToken.approve(address(votingContract), type(uint256).max);
+
+        // Stake for users
+        vm.prank(user1);
+        votingContract.stake(500 ether);
+        vm.prank(user2);
+        votingContract.stake(300 ether);
+        vm.prank(user3);
+        votingContract.stake(300 ether);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -361,6 +387,8 @@ contract AccessControlTest is Test {
         votingContract.castVote(votingId, true);
         vm.prank(user2);
         votingContract.castVote(votingId, false);
+        vm.prank(user3);
+        votingContract.castVote(votingId, true);
 
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);

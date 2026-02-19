@@ -305,7 +305,8 @@ contract VedyxVotingContractTest is Test {
             uint256 votesFor,
             uint256 votesAgainst,
             bool finalized,
-            bool isSuspicious
+            bool isSuspicious,
+            bool isInconclusive
         ) = votingContract.getVotingDetails(votingId);
         
         assertEq(report.suspiciousAddress, suspiciousAddr);
@@ -393,6 +394,11 @@ contract VedyxVotingContractTest is Test {
         vm.prank(user2);
         votingContract.castVote(votingId1, true);
         
+        vm.prank(user3);
+        votingContract.stake(300 ether);
+        vm.prank(user3);
+        votingContract.castVote(votingId1, true);
+        
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         
         votingContract.finalizeVoting(votingId1);
@@ -404,6 +410,12 @@ contract VedyxVotingContractTest is Test {
         uint256 votingId2 = votingContract.tagSuspicious(makeAddr("suspicious2"), 1, address(0x456), 2000 ether, 18, 67890);
         
         vm.prank(user1);
+        votingContract.castVote(votingId2, true);
+        
+        vm.prank(user2);
+        votingContract.castVote(votingId2, true);
+        
+        vm.prank(user3);
         votingContract.castVote(votingId2, true);
         
         (, bool votedFor, uint256 votingPower) = votingContract.getVote(votingId2, user1);
@@ -515,7 +527,7 @@ contract VedyxVotingContractTest is Test {
         
         votingContract.finalizeVoting(votingId);
         
-        (,,,,,bool finalized, bool isSuspicious) = votingContract.getVotingDetails(votingId);
+        (,,,,,bool finalized, bool isSuspicious,) = votingContract.getVotingDetails(votingId);
         assertTrue(finalized);
         assertTrue(isSuspicious);
         
@@ -545,7 +557,7 @@ contract VedyxVotingContractTest is Test {
         
         votingContract.finalizeVoting(votingId);
         
-        (,,,,,bool finalized, bool isSuspicious) = votingContract.getVotingDetails(votingId);
+        (,,,,,bool finalized, bool isSuspicious,) = votingContract.getVotingDetails(votingId);
         assertTrue(finalized);
         assertFalse(isSuspicious);
     }
@@ -586,6 +598,8 @@ contract VedyxVotingContractTest is Test {
         votingContract.stake(500 ether);
         vm.prank(user2);
         votingContract.stake(300 ether);
+        vm.prank(user3);
+        votingContract.stake(300 ether);
         
         vm.prank(callbackAuthorizer);
         uint256 votingId1 = votingContract.tagSuspicious(suspiciousAddr, 1, address(0x123), 1000 ether, 18, 12345);
@@ -594,6 +608,8 @@ contract VedyxVotingContractTest is Test {
         votingContract.castVote(votingId1, true);
         vm.prank(user2);
         votingContract.castVote(votingId1, false);
+        vm.prank(user3);
+        votingContract.castVote(votingId1, true);
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId1);
@@ -608,19 +624,24 @@ contract VedyxVotingContractTest is Test {
         
         vm.prank(user1);
         votingContract.castVote(votingId2, true);
+        vm.prank(user2);
+        votingContract.castVote(votingId2, true);
+        vm.prank(user3);
+        votingContract.castVote(votingId2, true);
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         
         uint256 expectedReward = (feeCollected * 200) / 10000; // 2%
-        uint256 balanceBefore = stakingToken.balanceOf(user3);
+        address finalizer = makeAddr("finalizer");
+        uint256 balanceBefore = stakingToken.balanceOf(finalizer);
         
         vm.expectEmit(true, true, false, true);
-        emit FinalizationRewardPaid(votingId2, user3, expectedReward);
+        emit FinalizationRewardPaid(votingId2, finalizer, expectedReward);
         
-        vm.prank(user3);
+        vm.prank(finalizer);
         votingContract.finalizeVoting(votingId2);
         
-        uint256 balanceAfter = stakingToken.balanceOf(user3);
+        uint256 balanceAfter = stakingToken.balanceOf(finalizer);
         assertEq(balanceAfter - balanceBefore, expectedReward);
     }
     
@@ -664,11 +685,19 @@ contract VedyxVotingContractTest is Test {
     function test_Karma_RewardForCorrectVotes() public {
         vm.prank(user1);
         votingContract.stake(500 ether);
+        vm.prank(user2);
+        votingContract.stake(500 ether);
+        vm.prank(user3);
+        votingContract.stake(300 ether);
         
         vm.prank(callbackAuthorizer);
         uint256 votingId = votingContract.tagSuspicious(suspiciousAddr, 1, address(0x123), 1000 ether, 18, 12345);
         
         vm.prank(user1);
+        votingContract.castVote(votingId, true);
+        vm.prank(user2);
+        votingContract.castVote(votingId, true);
+        vm.prank(user3);
         votingContract.castVote(votingId, true);
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
@@ -689,21 +718,25 @@ contract VedyxVotingContractTest is Test {
         votingContract.stake(500 ether);
         vm.prank(user2);
         votingContract.stake(300 ether);
+        vm.prank(user3);
+        votingContract.stake(300 ether);
         
         vm.prank(callbackAuthorizer);
         uint256 votingId = votingContract.tagSuspicious(suspiciousAddr, 1, address(0x123), 1000 ether, 18, 12345);
         
         vm.prank(user1);
-        votingContract.castVote(votingId, true);
-        vm.prank(user2);
         votingContract.castVote(votingId, false);
+        vm.prank(user2);
+        votingContract.castVote(votingId, true);
+        vm.prank(user3);
+        votingContract.castVote(votingId, true);
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         
         votingContract.finalizeVoting(votingId);
         
-        VedyxTypes.Staker memory stakeUser2 = votingContract.getStakerInfo(user2);
-        assertEq(stakeUser2.karmaPoints, -5);
+        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        assertEq(stakeUser1.karmaPoints, -5);
     }
     
     function test_LockedAmount_UnlockedAfterFinalization() public {
@@ -865,6 +898,8 @@ contract VedyxVotingContractTest is Test {
         votingContract.stake(500 ether);
         vm.prank(user2);
         votingContract.stake(300 ether);
+        vm.prank(user3);
+        votingContract.stake(300 ether);
         
         vm.prank(callbackAuthorizer);
         uint256 votingId = votingContract.tagSuspicious(suspiciousAddr, 1, address(0x123), 1000 ether, 18, 12345);
@@ -873,6 +908,8 @@ contract VedyxVotingContractTest is Test {
         votingContract.castVote(votingId, true);
         vm.prank(user2);
         votingContract.castVote(votingId, false);
+        vm.prank(user3);
+        votingContract.castVote(votingId, true);
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
@@ -922,11 +959,19 @@ contract VedyxVotingContractTest is Test {
     function test_GetVotingPower_WithKarma() public {
         vm.prank(user1);
         votingContract.stake(500 ether);
+        vm.prank(user2);
+        votingContract.stake(500 ether);
+        vm.prank(user3);
+        votingContract.stake(300 ether);
         
         vm.prank(callbackAuthorizer);
         uint256 votingId = votingContract.tagSuspicious(suspiciousAddr, 1, address(0x123), 1000 ether, 18, 12345);
         
         vm.prank(user1);
+        votingContract.castVote(votingId, true);
+        vm.prank(user2);
+        votingContract.castVote(votingId, true);
+        vm.prank(user3);
         votingContract.castVote(votingId, true);
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
@@ -944,15 +989,23 @@ contract VedyxVotingContractTest is Test {
     function test_GetVoterAccuracy_WithVotes() public {
         vm.prank(user1);
         votingContract.stake(500 ether);
+        vm.prank(user2);
+        votingContract.stake(500 ether);
+        vm.prank(user3);
+        votingContract.stake(300 ether);
         
         vm.prank(callbackAuthorizer);
-        uint256 votingId1 = votingContract.tagSuspicious(suspiciousAddr, 1, address(0x123), 1000 ether, 18, 12345);
+        uint256 votingId = votingContract.tagSuspicious(suspiciousAddr, 1, address(0x123), 1000 ether, 18, 12345);
         
         vm.prank(user1);
-        votingContract.castVote(votingId1, true);
+        votingContract.castVote(votingId, true);
+        vm.prank(user2);
+        votingContract.castVote(votingId, true);
+        vm.prank(user3);
+        votingContract.castVote(votingId, true);
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
-        votingContract.finalizeVoting(votingId1);
+        votingContract.finalizeVoting(votingId);
         
         uint256 accuracy = votingContract.getVoterAccuracy(user1);
         assertEq(accuracy, 10000); // 100%
@@ -1076,7 +1129,7 @@ contract VedyxVotingContractTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
         
-        (,,,,,bool finalized, bool isSuspicious) = votingContract.getVotingDetails(votingId);
+        (,,,,,bool finalized, bool isSuspicious,) = votingContract.getVotingDetails(votingId);
         assertTrue(finalized);
         assertFalse(isSuspicious);
     }
@@ -1098,7 +1151,7 @@ contract VedyxVotingContractTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
         
-        (,,,,,, bool isSuspicious) = votingContract.getVotingDetails(votingId);
+        (,,,,,, bool isSuspicious,) = votingContract.getVotingDetails(votingId);
         assertFalse(isSuspicious);
     }
 }

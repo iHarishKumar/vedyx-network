@@ -215,6 +215,8 @@ contract VerdictSystemTest is Test {
         votingContract.castVote(votingId1, true);
         vm.prank(user2);
         votingContract.castVote(votingId1, true);
+        vm.prank(user3);
+        votingContract.castVote(votingId1, false);
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId1);
@@ -246,6 +248,8 @@ contract VerdictSystemTest is Test {
         votingContract.castVote(votingId1, true);
         vm.prank(user2);
         votingContract.castVote(votingId1, true);
+        vm.prank(user3);
+        votingContract.castVote(votingId1, false);
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId1);
@@ -278,6 +282,8 @@ contract VerdictSystemTest is Test {
         votingContract.castVote(votingId1, true);
         vm.prank(user2);
         votingContract.castVote(votingId1, true);
+        vm.prank(user3);
+        votingContract.castVote(votingId1, false);
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId1);
@@ -306,6 +312,8 @@ contract VerdictSystemTest is Test {
         votingContract.castVote(votingId1, false);
         vm.prank(user2);
         votingContract.castVote(votingId1, false);
+        vm.prank(user3);
+        votingContract.castVote(votingId1, true);
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId1);
@@ -332,6 +340,8 @@ contract VerdictSystemTest is Test {
         votingContract.castVote(votingId1, false);
         vm.prank(user2);
         votingContract.castVote(votingId1, false);
+        vm.prank(user3);
+        votingContract.castVote(votingId1, true);
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId1);
@@ -344,6 +354,8 @@ contract VerdictSystemTest is Test {
         votingContract.castVote(votingId2, true);
         vm.prank(user2);
         votingContract.castVote(votingId2, true);
+        vm.prank(user3);
+        votingContract.castVote(votingId2, false);
         
         vm.warp(block.timestamp + VOTING_DURATION * 2 + 1);
         votingContract.finalizeVoting(votingId2);
@@ -376,6 +388,8 @@ contract VerdictSystemTest is Test {
         votingContract.castVote(votingId, true);
         vm.prank(user2);
         votingContract.castVote(votingId, true);
+        vm.prank(user3);
+        votingContract.castVote(votingId, false);
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
@@ -403,6 +417,8 @@ contract VerdictSystemTest is Test {
         votingContract.castVote(votingId1, true);
         vm.prank(user2);
         votingContract.castVote(votingId1, true);
+        vm.prank(user3);
+        votingContract.castVote(votingId1, false);
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId1);
@@ -434,6 +450,8 @@ contract VerdictSystemTest is Test {
         votingContract.castVote(votingId, true);
         vm.prank(user2);
         votingContract.castVote(votingId, true);
+        vm.prank(user3);
+        votingContract.castVote(votingId, false);
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
@@ -485,8 +503,11 @@ contract VerdictSystemTest is Test {
         vm.prank(user2);
         votingContract.castVote(votingId, false);
         
+        vm.prank(user3);
+        votingContract.castVote(votingId, true);
+        
         // Verify votes were recorded
-        (,,, uint256 votesFor, uint256 votesAgainst,,) = votingContract.getVotingDetails(votingId);
+        (,,, uint256 votesFor, uint256 votesAgainst,,,) = votingContract.getVotingDetails(votingId);
         assertGt(votesFor, 0);
         assertGt(votesAgainst, 0);
     }
@@ -504,6 +525,8 @@ contract VerdictSystemTest is Test {
         votingContract.castVote(votingId, true);
         vm.prank(user2);
         votingContract.castVote(votingId, true);
+        vm.prank(user3);
+        votingContract.castVote(votingId, false);
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
@@ -540,6 +563,8 @@ contract VerdictSystemTest is Test {
         votingContract.castVote(votingId, true);
         vm.prank(user2);
         votingContract.castVote(votingId, true);
+        vm.prank(user3);
+        votingContract.castVote(votingId, false);
         
         uint256 finalizeTime = block.timestamp + VOTING_DURATION + 1;
         vm.warp(finalizeTime);
@@ -568,6 +593,8 @@ contract VerdictSystemTest is Test {
         votingContract.castVote(votingId1, true);
         vm.prank(user2);
         votingContract.castVote(votingId1, true);
+        vm.prank(user3);
+        votingContract.castVote(votingId1, false);
         
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId1);
@@ -580,6 +607,8 @@ contract VerdictSystemTest is Test {
         votingContract.castVote(votingId2, false);
         vm.prank(user2);
         votingContract.castVote(votingId2, false);
+        vm.prank(user3);
+        votingContract.castVote(votingId2, true);
         
         vm.warp(block.timestamp + VOTING_DURATION * 2 + 1);
         votingContract.finalizeVoting(votingId2);
