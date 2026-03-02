@@ -84,7 +84,8 @@ contract NegativeKarmaTest is Test {
             address(0x123),
             1000 ether,
             18,
-            12345
+            12345,
+            bytes32(0)
         );
 
         vm.prank(user1);
@@ -98,9 +99,7 @@ contract NegativeKarmaTest is Test {
         votingContract.finalizeVoting(votingId1);
 
         // user1 should have negative karma now
-        VedyxTypes.Staker memory staker = votingContract.getStakerInfo(
-            user1
-        );
+        VedyxTypes.Staker memory staker = votingContract.getStakerInfo(user1);
         assertEq(staker.karmaPoints, -5); // Lost 5 karma
 
         console2.log("Staker information: ----");
@@ -114,14 +113,15 @@ contract NegativeKarmaTest is Test {
         // Formula: penalty = stake * (karma^2) / 100000
         // With -5 karma: penalty = 450 * (5^2) / 100000 = 450 * 25 / 100000 = 0.1125 ether
         int256 votingPower = votingContract.getVotingPower(user1);
-        
+
         uint256 expectedPenalty = (staker.stakedAmount * 25) / 100000; // 5^2 = 25
-        int256 expectedPower = int256(staker.stakedAmount) - int256(expectedPenalty);
-        
+        int256 expectedPower = int256(staker.stakedAmount) -
+            int256(expectedPenalty);
+
         assertEq(votingPower, expectedPower);
         assertLt(votingPower, int256(staker.stakedAmount)); // Less than stake
         assertGt(votingPower, 0); // Still positive with small negative karma
-        
+
         console2.log("Voting Power:", votingPower);
         console2.log("Expected Power:", expectedPower);
     }
@@ -143,7 +143,8 @@ contract NegativeKarmaTest is Test {
                 address(0x123),
                 1000 ether,
                 18,
-                12345 + i
+                12345 + i,
+                bytes32(0)
             );
 
             vm.prank(user1);
@@ -167,10 +168,11 @@ contract NegativeKarmaTest is Test {
         // Formula: penalty = stake * (karma^2) / 100000
         // With -25 karma: penalty = stake * (25^2) / 100000 = stake * 625 / 100000
         int256 votingPower = votingContract.getVotingPower(user1);
-        
+
         uint256 expectedPenalty = (staker.stakedAmount * 625) / 100000; // 25^2 = 625
-        int256 expectedPower = int256(staker.stakedAmount) - int256(expectedPenalty);
-        
+        int256 expectedPower = int256(staker.stakedAmount) -
+            int256(expectedPenalty);
+
         assertEq(votingPower, expectedPower);
         assertLt(votingPower, int256(staker.stakedAmount)); // Reduced from stake
         assertGt(votingPower, 0); // Still positive with -25 karma (not severe enough yet)
@@ -193,7 +195,8 @@ contract NegativeKarmaTest is Test {
                 address(0x123),
                 1000 ether,
                 18,
-                12345 + i
+                12345 + i,
+                bytes32(0)
             );
 
             vm.prank(user1);
@@ -219,7 +222,8 @@ contract NegativeKarmaTest is Test {
             address(0x123),
             1000 ether,
             18,
-            99999
+            99999,
+            bytes32(0)
         );
 
         vm.prank(user1);
@@ -233,7 +237,9 @@ contract NegativeKarmaTest is Test {
         votingContract.finalizeVoting(votingId);
 
         // Karma should improve
-        VedyxTypes.Staker memory stakeAfter = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeAfter = votingContract.getStakerInfo(
+            user1
+        );
         assertEq(stakeAfter.karmaPoints, 0); // -10 + 10 = 0
     }
 
@@ -254,7 +260,8 @@ contract NegativeKarmaTest is Test {
                 address(0x123),
                 1000 ether,
                 18,
-                12345 + i
+                12345 + i,
+                bytes32(0)
             );
 
             vm.prank(user1);
@@ -282,7 +289,8 @@ contract NegativeKarmaTest is Test {
             address(0x123),
             1000 ether,
             18,
-            99999
+            99999,
+            bytes32(0)
         );
 
         vm.expectRevert(InsufficientKarma.selector);

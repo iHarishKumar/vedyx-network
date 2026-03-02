@@ -103,7 +103,8 @@ contract QuorumEnforcementTest is Test {
             address(0x123),
             1000 ether,
             18,
-            12345
+            12345,
+            bytes32(0)
         );
 
         // Only 1 voter (minimum is 3)
@@ -113,10 +114,16 @@ contract QuorumEnforcementTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
 
         vm.expectEmit(true, true, true, true);
-        emit VedyxVotingContract.VotingInconclusive(votingId, suspiciousAddr1, 1, 500 ether);
+        emit VedyxVotingContract.VotingInconclusive(
+            votingId,
+            suspiciousAddr1,
+            1,
+            500 ether
+        );
         votingContract.finalizeVoting(votingId);
 
-        (, , , , , bool finalized, , bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (, , , , , bool finalized, , bool isInconclusive) = votingContract
+            .getVotingDetails(votingId);
         assertTrue(finalized);
         assertTrue(isInconclusive);
     }
@@ -129,7 +136,8 @@ contract QuorumEnforcementTest is Test {
             address(0x123),
             1000 ether,
             18,
-            12345
+            12345,
+            bytes32(0)
         );
 
         // Only 2 voters (minimum is 3)
@@ -142,10 +150,16 @@ contract QuorumEnforcementTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
 
         vm.expectEmit(true, true, true, true);
-        emit VedyxVotingContract.VotingInconclusive(votingId, suspiciousAddr1, 2, 1000 ether);
+        emit VedyxVotingContract.VotingInconclusive(
+            votingId,
+            suspiciousAddr1,
+            2,
+            1000 ether
+        );
         votingContract.finalizeVoting(votingId);
 
-        (, , , , , bool finalized, , bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (, , , , , bool finalized, , bool isInconclusive) = votingContract
+            .getVotingDetails(votingId);
         assertTrue(finalized);
         assertTrue(isInconclusive);
     }
@@ -158,7 +172,8 @@ contract QuorumEnforcementTest is Test {
             address(0x123),
             1000 ether,
             18,
-            12345
+            12345,
+            bytes32(0)
         );
 
         // Exactly 3 voters (minimum)
@@ -176,7 +191,16 @@ contract QuorumEnforcementTest is Test {
         // Should succeed
         votingContract.finalizeVoting(votingId);
 
-        (, , , , , bool finalized, bool isSuspicious, bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (
+            ,
+            ,
+            ,
+            ,
+            ,
+            bool finalized,
+            bool isSuspicious,
+            bool isInconclusive
+        ) = votingContract.getVotingDetails(votingId);
         assertTrue(finalized);
         assertTrue(isSuspicious); // 2 vs 1
         assertFalse(isInconclusive);
@@ -190,7 +214,8 @@ contract QuorumEnforcementTest is Test {
             address(0x123),
             1000 ether,
             18,
-            12345
+            12345,
+            bytes32(0)
         );
 
         // 5 voters (more than minimum)
@@ -214,7 +239,16 @@ contract QuorumEnforcementTest is Test {
         // Should succeed
         votingContract.finalizeVoting(votingId);
 
-        (, , , , , bool finalized, bool isSuspicious, bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (
+            ,
+            ,
+            ,
+            ,
+            ,
+            bool finalized,
+            bool isSuspicious,
+            bool isInconclusive
+        ) = votingContract.getVotingDetails(votingId);
         assertTrue(finalized);
         assertTrue(isSuspicious); // 3 vs 2
         assertFalse(isInconclusive);
@@ -231,7 +265,8 @@ contract QuorumEnforcementTest is Test {
             address(0x123),
             1000 ether,
             18,
-            12345
+            12345,
+            bytes32(0)
         );
 
         // 3 voters but insufficient total voting power
@@ -248,10 +283,16 @@ contract QuorumEnforcementTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
 
         vm.expectEmit(true, true, true, true);
-        emit VedyxVotingContract.VotingInconclusive(votingId, suspiciousAddr1, 3, 700 ether);
+        emit VedyxVotingContract.VotingInconclusive(
+            votingId,
+            suspiciousAddr1,
+            3,
+            700 ether
+        );
         votingContract.finalizeVoting(votingId);
 
-        (, , , , , bool finalized, , bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (, , , , , bool finalized, , bool isInconclusive) = votingContract
+            .getVotingDetails(votingId);
         assertTrue(finalized);
         assertTrue(isInconclusive);
     }
@@ -264,7 +305,8 @@ contract QuorumEnforcementTest is Test {
             address(0x123),
             1000 ether,
             18,
-            12345
+            12345,
+            bytes32(0)
         );
 
         // 3 voters with sufficient total voting power
@@ -283,7 +325,8 @@ contract QuorumEnforcementTest is Test {
         // Should succeed (meets both quorum requirements)
         votingContract.finalizeVoting(votingId);
 
-        (, , , , , bool finalized, , bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (, , , , , bool finalized, , bool isInconclusive) = votingContract
+            .getVotingDetails(votingId);
         assertTrue(finalized);
         assertFalse(isInconclusive);
     }
@@ -294,12 +337,12 @@ contract QuorumEnforcementTest is Test {
 
     function test_SetMinimumVoters_Success() public {
         uint256 newMinimum = 5;
-        
+
         vm.expectEmit(true, true, true, true);
         emit VedyxVotingContract.MinimumVotersUpdated(newMinimum);
-        
+
         votingContract.setMinimumVoters(newMinimum);
-        
+
         assertEq(votingContract.minimumVoters(), newMinimum);
     }
 
@@ -316,12 +359,12 @@ contract QuorumEnforcementTest is Test {
 
     function test_SetMinimumTotalVotingPower_Success() public {
         uint256 newMinimum = 2000 ether;
-        
+
         vm.expectEmit(true, true, true, true);
         emit VedyxVotingContract.MinimumTotalVotingPowerUpdated(newMinimum);
-        
+
         votingContract.setMinimumTotalVotingPower(newMinimum);
-        
+
         assertEq(votingContract.minimumTotalVotingPower(), newMinimum);
     }
 
@@ -351,7 +394,8 @@ contract QuorumEnforcementTest is Test {
             address(0x123),
             1000 ether,
             18,
-            12345
+            12345,
+            bytes32(0)
         );
 
         // 4 voters with different stakes
@@ -371,7 +415,16 @@ contract QuorumEnforcementTest is Test {
 
         votingContract.finalizeVoting(votingId);
 
-        (, , , , , bool finalized, bool isSuspicious, bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (
+            ,
+            ,
+            ,
+            ,
+            ,
+            bool finalized,
+            bool isSuspicious,
+            bool isInconclusive
+        ) = votingContract.getVotingDetails(votingId);
         assertTrue(finalized);
         assertTrue(isSuspicious); // 1000 vs 500
         assertFalse(isInconclusive);
@@ -385,7 +438,8 @@ contract QuorumEnforcementTest is Test {
             address(0x123),
             1000 ether,
             18,
-            12345
+            12345,
+            bytes32(0)
         );
 
         // 3 voters with equal total voting power on each side
@@ -406,7 +460,16 @@ contract QuorumEnforcementTest is Test {
 
         votingContract.finalizeVoting(votingId);
 
-        (, , , , , bool finalized, bool isSuspicious, bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (
+            ,
+            ,
+            ,
+            ,
+            ,
+            bool finalized,
+            bool isSuspicious,
+            bool isInconclusive
+        ) = votingContract.getVotingDetails(votingId);
         assertTrue(finalized);
         assertTrue(isSuspicious); // 800 vs 700 (for wins)
         assertFalse(isInconclusive);
@@ -420,7 +483,8 @@ contract QuorumEnforcementTest is Test {
             address(0x123),
             1000 ether,
             18,
-            12345
+            12345,
+            bytes32(0)
         );
 
         // 2 voters cast votes
@@ -438,7 +502,8 @@ contract QuorumEnforcementTest is Test {
         // Should succeed now with 2 voters
         votingContract.finalizeVoting(votingId);
 
-        (, , , , , bool finalized, , bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (, , , , , bool finalized, , bool isInconclusive) = votingContract
+            .getVotingDetails(votingId);
         assertTrue(finalized);
         assertFalse(isInconclusive);
     }
@@ -452,7 +517,8 @@ contract QuorumEnforcementTest is Test {
             address(0x123),
             1000 ether,
             18,
-            12345
+            12345,
+            bytes32(0)
         );
 
         // Create second voting
@@ -463,7 +529,8 @@ contract QuorumEnforcementTest is Test {
             address(0x456),
             2000 ether,
             18,
-            67890
+            67890,
+            bytes32(0)
         );
 
         // First voting: only 2 voters (insufficient)
@@ -479,7 +546,7 @@ contract QuorumEnforcementTest is Test {
         // So we need to finalize votingId1 first or use only user3, user4, user5
         // Let's lower the minimum voting power temporarily for this test
         votingContract.setMinimumTotalVotingPower(700 ether);
-        
+
         vm.prank(user3);
         votingContract.castVote(votingId2, true);
 
@@ -493,14 +560,16 @@ contract QuorumEnforcementTest is Test {
 
         // First voting should be inconclusive
         votingContract.finalizeVoting(votingId1);
-        (, , , , , bool finalized1, , bool isInconclusive1) = votingContract.getVotingDetails(votingId1);
+        (, , , , , bool finalized1, , bool isInconclusive1) = votingContract
+            .getVotingDetails(votingId1);
         assertTrue(finalized1);
         assertTrue(isInconclusive1);
 
         // Second voting should succeed
         votingContract.finalizeVoting(votingId2);
 
-        (, , , , , bool finalized2, , bool isInconclusive2) = votingContract.getVotingDetails(votingId2);
+        (, , , , , bool finalized2, , bool isInconclusive2) = votingContract
+            .getVotingDetails(votingId2);
         assertTrue(finalized2);
         assertFalse(isInconclusive2);
     }
@@ -517,7 +586,8 @@ contract QuorumEnforcementTest is Test {
             address(0x123),
             1000 ether,
             18,
-            12345
+            12345,
+            bytes32(0)
         );
 
         // 3 voters (meets voter requirement) but low voting power
@@ -535,7 +605,8 @@ contract QuorumEnforcementTest is Test {
 
         // Should be inconclusive due to insufficient voting power
         votingContract.finalizeVoting(votingId);
-        (, , , , , bool finalized, , bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (, , , , , bool finalized, , bool isInconclusive) = votingContract
+            .getVotingDetails(votingId);
         assertTrue(finalized);
         assertTrue(isInconclusive);
     }
@@ -543,6 +614,9 @@ contract QuorumEnforcementTest is Test {
     function test_QuorumEnforcement_DefaultValues() public {
         // Verify default values are set correctly
         assertEq(votingContract.minimumVoters(), DEFAULT_MINIMUM_VOTERS);
-        assertEq(votingContract.minimumTotalVotingPower(), DEFAULT_MINIMUM_VOTING_POWER);
+        assertEq(
+            votingContract.minimumTotalVotingPower(),
+            DEFAULT_MINIMUM_VOTING_POWER
+        );
     }
 }

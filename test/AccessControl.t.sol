@@ -380,7 +380,8 @@ contract AccessControlTest is Test {
             address(0x123),
             1000 ether,
             18,
-            12345
+            12345,
+            bytes32(0)
         );
 
         vm.prank(user1);

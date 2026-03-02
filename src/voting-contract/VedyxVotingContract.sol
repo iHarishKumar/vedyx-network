@@ -153,7 +153,8 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
         address originContract,
         uint256 value,
         uint256 decimals,
-        uint256 txHash
+        uint256 txHash,
+        bytes32 detectorId
     ) external onlyCallbackAuthorizer returns (uint256 votingId) {
         if (suspiciousAddress == address(0)) revert VedyxErrors.InvalidAddress();
 
@@ -188,7 +189,7 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
             value: value,
             decimals: decimals,
             txHash: txHash,
-            detectorId: bytes32(0)
+            detectorId: detectorId
         });
         voting.startTime = block.timestamp;
         voting.endTime = block.timestamp + votingDuration;

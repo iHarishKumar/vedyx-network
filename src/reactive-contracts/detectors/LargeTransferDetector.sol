@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {IReactive} from "reactive-lib/interfaces/IReactive.sol";
-import {IAttackVectorDetector} from "../IAttackVectorDetector.sol";
+import {IAttackVectorDetector} from "../interfaces/IAttackVectorDetector.sol";
 import {Ownable} from "@openzeppelin-contracts/contracts/access/Ownable.sol";
 
 error InvalidTokenAddress();
@@ -99,13 +99,14 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
 
         if (value >= threshold) {
             payload = abi.encodeWithSignature(
-                "tagSuspicious(address,uint256,address,uint256,uint256,uint256)",
+                "tagSuspicious(address,uint256,address,uint256,uint256,uint256,bytes32)",
                 from,
                 log.chain_id,
                 tokenContract,
                 value,
                 config.decimals,
-                log.tx_hash
+                log.tx_hash,
+                DETECTOR_ID
             );
             
             return (true, from, payload);

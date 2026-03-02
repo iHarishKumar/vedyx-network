@@ -56,10 +56,12 @@ interface IVedyxVoting {
 
     // ─── Staking Functions ────────────────────────────────────────────────
     function stake(uint256 amount) external;
+
     function unstake(uint256 amount) external;
 
     // ─── Voting Functions ─────────────────────────────────────────────────
     function castVote(uint256 votingId, bool voteSuspicious) external;
+
     function finalizeVoting(uint256 votingId) external;
 
     // ─── Callback Function ────────────────────────────────────────────────
@@ -69,7 +71,8 @@ interface IVedyxVoting {
         address originContract,
         uint256 value,
         uint256 decimals,
-        uint256 txHash
+        uint256 txHash,
+        bytes32 detectorId
     ) external returns (uint256 votingId);
 
     // ─── View Functions ───────────────────────────────────────────────────
@@ -108,7 +111,9 @@ interface IVedyxVoting {
 
     function getVoterAccuracy(address voter) external view returns (uint256);
 
-    function getVoters(uint256 votingId) external view returns (address[] memory);
+    function getVoters(
+        uint256 votingId
+    ) external view returns (address[] memory);
 
     function getAddressVerdict(
         address addr
@@ -127,15 +132,26 @@ interface IVedyxVoting {
 
     // ─── Admin Functions ──────────────────────────────────────────────────
     function setCallbackAuthorizer(address newAuthorizer) external;
+
     function setMinimumStake(uint256 newMinimum) external;
+
     function setVotingDuration(uint256 newDuration) external;
+
     function setPenaltyPercentage(uint256 newPercentage) external;
+
     function setKarmaReward(uint256 newReward) external;
+
     function setKarmaPenalty(uint256 newPenalty) external;
+
     function setMinimumKarmaToVote(int256 newMinimumKarma) external;
+
     function clearAddressVerdict(address suspiciousAddress) external;
+
     function setFinalizationRewardPercentage(uint256 newPercentage) external;
+
     function setTreasury(address newTreasury) external;
+
     function setFinalizationFeePercentage(uint256 newFeePercentage) external;
+
     function transferFeesToTreasury(uint256 amount) external;
 }
