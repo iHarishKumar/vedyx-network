@@ -8,6 +8,7 @@ import {Ownable} from "@openzeppelin-contracts/contracts/access/Ownable.sol";
 error InvalidTokenAddress();
 error ThresholdMustBeGreaterThanZero();
 error TokenNotConfigured();
+error InvalidDecimals();
 
 /**
  * @title LargeTransferDetector
@@ -16,11 +17,10 @@ error TokenNotConfigured();
  */
 contract LargeTransferDetector is IAttackVectorDetector, Ownable {
     // ─── Constants ────────────────────────────────────────────────────────
-    uint256 private constant TOPIC_TRANSFER =
-        0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef;
-    
+    uint256 private constant TOPIC_TRANSFER = 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef;
+
     uint256 private constant DEFAULT_THRESHOLD = 1_000;
-    
+
     bytes32 private constant DETECTOR_ID = keccak256("LARGE_TRANSFER_DETECTOR_V1");
 
     // ─── State ────────────────────────────────────────────────────────
@@ -35,11 +35,7 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
     mapping(address => TokenConfig) private tokenConfigs;
 
     // ─── Events ───────────────────────────────────────────────────────────
-    event TokenConfigured(
-        address indexed tokenAddress,
-        uint256 threshold,
-        uint8 decimals
-    );
+    event TokenConfigured(address indexed tokenAddress, uint256 threshold, uint8 decimals);
 
     event DetectorActivated();
     event DetectorDeactivated();
@@ -57,17 +53,11 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
      * @return suspiciousAddress The address flagged as suspicious
      * @return payload The encoded callback payload
      */
-    function detect(
-        IReactive.LogRecord calldata log
-    )
+    function detect(IReactive.LogRecord calldata log)
         external
         view
         override
-        returns (
-            bool detected,
-            address suspiciousAddress,
-            bytes memory payload
-        )
+        returns (bool detected, address suspiciousAddress, bytes memory payload)
     {
         if (!active) {
             return (false, address(0), "");
@@ -83,7 +73,7 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
 
         address from = address(uint160(log.topic_1));
         address tokenContract = log._contract;
-        
+
         bytes memory logData = log.data;
         uint256 value;
         assembly {
@@ -108,7 +98,7 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
                 log.tx_hash,
                 DETECTOR_ID
             );
-            
+
             return (true, from, payload);
         }
 
@@ -146,19 +136,12 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
      * @param threshold The threshold value in token's native decimals
      * @param decimals The number of decimals the token uses
      */
-    function configureToken(
-        address tokenAddress,
-        uint256 threshold,
-        uint8 decimals
-    ) external onlyOwner {
+    function configureToken(address tokenAddress, uint256 threshold, uint8 decimals) external onlyOwner {
         if (tokenAddress == address(0)) revert InvalidTokenAddress();
         if (threshold == 0) revert ThresholdMustBeGreaterThanZero();
+        if (decimals == 0) revert InvalidDecimals();
 
-        tokenConfigs[tokenAddress] = TokenConfig({
-            threshold: threshold,
-            decimals: decimals,
-            isConfigured: true
-        });
+        tokenConfigs[tokenAddress] = TokenConfig({threshold: threshold, decimals: decimals, isConfigured: true});
 
         emit TokenConfigured(tokenAddress, threshold, decimals);
     }
@@ -190,7 +173,6 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
         emit DetectorDeactivated();
     }
 
-
     // ─── Getters ──────────────────────────────────────────────────────────
     /**
      * @notice Returns the configuration for a specific token
@@ -199,9 +181,7 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
      * @return decimals The token's decimal places
      * @return isConfigured Whether the token has been configured
      */
-    function getTokenConfig(
-        address tokenAddress
-    )
+    function getTokenConfig(address tokenAddress)
         external
         view
         returns (uint256 threshold, uint8 decimals, bool isConfigured)
@@ -215,9 +195,7 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
      * @param tokenAddress The address of the token to query
      * @return The threshold that will be used for this token
      */
-    function getEffectiveThreshold(
-        address tokenAddress
-    ) external view returns (uint256) {
+    function getEffectiveThreshold(address tokenAddress) external view returns (uint256) {
         TokenConfig memory config = tokenConfigs[tokenAddress];
         return config.isConfigured ? config.threshold : DEFAULT_THRESHOLD;
     }

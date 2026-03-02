@@ -2,8 +2,8 @@
 
 pragma solidity >=0.8.0;
 
-import '../interfaces/IPayer.sol';
-import '../interfaces/IPayable.sol';
+import "../interfaces/IPayer.sol";
+import "../interfaces/IPayable.sol";
 
 /// @title Abstract base contract for contracts needing to handle payments to the system contract or callback proxies.
 abstract contract AbstractPayer is IPayer {
@@ -12,15 +12,13 @@ abstract contract AbstractPayer is IPayer {
     /// @notice ACL for addresses allowed to make callbacks and/or request payment.
     mapping(address => bool) senders;
 
-    constructor() {
-    }
+    constructor() {}
 
     /// @inheritdoc IPayer
-    receive() virtual external payable {
-    }
+    receive() external payable virtual {}
 
     modifier authorizedSenderOnly() {
-        require(senders[msg.sender], 'Authorized sender only');
+        require(senders[msg.sender], "Authorized sender only");
         _;
     }
 
@@ -39,10 +37,10 @@ abstract contract AbstractPayer is IPayer {
     /// @param recipient Address of the transfer's recipient.
     /// @param amount Amount to be transferred.
     function _pay(address payable recipient, uint256 amount) internal {
-        require(address(this).balance >= amount, 'Insufficient funds');
+        require(address(this).balance >= amount, "Insufficient funds");
         if (amount > 0) {
             (bool success,) = payable(recipient).call{value: amount}(new bytes(0));
-            require(success, 'Transfer failed');
+            require(success, "Transfer failed");
         }
     }
 

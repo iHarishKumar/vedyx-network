@@ -2,7 +2,7 @@
 
 pragma solidity >=0.8.0;
 
-import './IPayer.sol';
+import "./IPayer.sol";
 
 /// @title Interface for reactive contracts.
 /// @notice Reactive contracts receive notifications about new events matching the criteria of their event subscriptions.
@@ -22,12 +22,7 @@ interface IReactive is IPayer {
         uint256 log_index;
     }
 
-    event Callback(
-        uint256 indexed chain_id,
-        address indexed _contract,
-        uint64 indexed gas_limit,
-        bytes payload
-    );
+    event Callback(uint256 indexed chain_id, address indexed _contract, uint64 indexed gas_limit, bytes payload);
 
     /// @notice Entry point for handling new event notifications.
     /// @param log Data structure containing the information about the intercepted log record.

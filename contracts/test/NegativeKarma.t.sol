@@ -78,15 +78,8 @@ contract NegativeKarmaTest is Test {
 
         // First vote - user1 votes incorrectly
         vm.prank(callbackAuthorizer);
-        uint256 votingId1 = votingContract.tagSuspicious(
-            suspiciousAddr,
-            1,
-            address(0x123),
-            1000 ether,
-            18,
-            12345,
-            bytes32(0)
-        );
+        uint256 votingId1 =
+            votingContract.tagSuspicious(suspiciousAddr, 1, address(0x123), 1000 ether, 18, 12345, bytes32(0));
 
         vm.prank(user1);
         votingContract.castVote(votingId1, false);
@@ -115,8 +108,7 @@ contract NegativeKarmaTest is Test {
         int256 votingPower = votingContract.getVotingPower(user1);
 
         uint256 expectedPenalty = (staker.stakedAmount * 25) / 100000; // 5^2 = 25
-        int256 expectedPower = int256(staker.stakedAmount) -
-            int256(expectedPenalty);
+        int256 expectedPower = int256(staker.stakedAmount) - int256(expectedPenalty);
 
         assertEq(votingPower, expectedPower);
         assertLt(votingPower, int256(staker.stakedAmount)); // Less than stake
@@ -170,8 +162,7 @@ contract NegativeKarmaTest is Test {
         int256 votingPower = votingContract.getVotingPower(user1);
 
         uint256 expectedPenalty = (staker.stakedAmount * 625) / 100000; // 25^2 = 625
-        int256 expectedPower = int256(staker.stakedAmount) -
-            int256(expectedPenalty);
+        int256 expectedPower = int256(staker.stakedAmount) - int256(expectedPenalty);
 
         assertEq(votingPower, expectedPower);
         assertLt(votingPower, int256(staker.stakedAmount)); // Reduced from stake
@@ -216,15 +207,8 @@ contract NegativeKarmaTest is Test {
 
         // Vote correctly once
         vm.prank(callbackAuthorizer);
-        uint256 votingId = votingContract.tagSuspicious(
-            suspiciousAddr,
-            1,
-            address(0x123),
-            1000 ether,
-            18,
-            99999,
-            bytes32(0)
-        );
+        uint256 votingId =
+            votingContract.tagSuspicious(suspiciousAddr, 1, address(0x123), 1000 ether, 18, 99999, bytes32(0));
 
         vm.prank(user1);
         votingContract.castVote(votingId, true);
@@ -237,9 +221,7 @@ contract NegativeKarmaTest is Test {
         votingContract.finalizeVoting(votingId);
 
         // Karma should improve
-        VedyxTypes.Staker memory stakeAfter = votingContract.getStakerInfo(
-            user1
-        );
+        VedyxTypes.Staker memory stakeAfter = votingContract.getStakerInfo(user1);
         assertEq(stakeAfter.karmaPoints, 0); // -10 + 10 = 0
     }
 
@@ -283,15 +265,8 @@ contract NegativeKarmaTest is Test {
 
         // Try to vote - should revert with InsufficientKarma
         vm.prank(callbackAuthorizer);
-        uint256 votingId = votingContract.tagSuspicious(
-            suspiciousAddr,
-            1,
-            address(0x123),
-            1000 ether,
-            18,
-            99999,
-            bytes32(0)
-        );
+        uint256 votingId =
+            votingContract.tagSuspicious(suspiciousAddr, 1, address(0x123), 1000 ether, 18, 99999, bytes32(0));
 
         vm.expectRevert(InsufficientKarma.selector);
         vm.prank(user1);

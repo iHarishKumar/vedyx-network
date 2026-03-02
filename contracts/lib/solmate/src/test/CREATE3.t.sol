@@ -11,9 +11,7 @@ import {CREATE3} from "../utils/CREATE3.sol";
 contract Factory {
     function deploy(bytes32 salt) public returns (address deployed) {
         deployed = CREATE3.deploy(
-            salt,
-            abi.encodePacked(type(MockERC20).creationCode, abi.encode("Mock Token", "MOCK", 18)),
-            0
+            salt, abi.encodePacked(type(MockERC20).creationCode, abi.encode("Mock Token", "MOCK", 18)), 0
         );
     }
 }
@@ -23,9 +21,7 @@ contract CREATE3Test is DSTestPlus {
         bytes32 salt = keccak256(bytes("A salt!"));
         MockERC20 deployed = MockERC20(
             CREATE3.deploy(
-                salt,
-                abi.encodePacked(type(MockERC20).creationCode, abi.encode("Mock Token", "MOCK", 18)),
-                0
+                salt, abi.encodePacked(type(MockERC20).creationCode, abi.encode("Mock Token", "MOCK", 18)), 0
             )
         );
 
@@ -40,10 +36,8 @@ contract CREATE3Test is DSTestPlus {
         bytes32 salt = keccak256(bytes("A salt!"));
         Factory factory = new Factory();
 
-        MockERC20 deployed = MockERC20(
-            factory.deploy(salt)
-        );
-    
+        MockERC20 deployed = MockERC20(factory.deploy(salt));
+
         assertEq(address(deployed), CREATE3.getDeployed(salt, address(factory)));
         assertTrue(address(deployed) != CREATE3.getDeployed(salt));
 
@@ -66,12 +60,7 @@ contract CREATE3Test is DSTestPlus {
         CREATE3.deploy(salt, type(MockAuthChild).creationCode, 0);
     }
 
-    function testDeployERC20(
-        bytes32 salt,
-        string calldata name,
-        string calldata symbol,
-        uint8 decimals
-    ) public {
+    function testDeployERC20(bytes32 salt, string calldata name, string calldata symbol, uint8 decimals) public {
         MockERC20 deployed = MockERC20(
             CREATE3.deploy(salt, abi.encodePacked(type(MockERC20).creationCode, abi.encode(name, symbol, decimals)), 0)
         );
@@ -88,11 +77,9 @@ contract CREATE3Test is DSTestPlus {
         CREATE3.deploy(salt, bytecode, 0);
     }
 
-    function testFailDoubleDeployDifferentBytecode(
-        bytes32 salt,
-        bytes calldata bytecode1,
-        bytes calldata bytecode2
-    ) public {
+    function testFailDoubleDeployDifferentBytecode(bytes32 salt, bytes calldata bytecode1, bytes calldata bytecode2)
+        public
+    {
         CREATE3.deploy(salt, bytecode1, 0);
         CREATE3.deploy(salt, bytecode2, 0);
     }

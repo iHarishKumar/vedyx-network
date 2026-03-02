@@ -2,8 +2,8 @@
 
 pragma solidity >=0.8.0;
 
-import '../interfaces/IPayable.sol';
-import './AbstractPayer.sol';
+import "../interfaces/IPayable.sol";
+import "./AbstractPayer.sol";
 
 /// @title Abstract base contract for contracts receiving the Reactive Network callbacks.
 abstract contract AbstractCallback is AbstractPayer {
@@ -16,7 +16,7 @@ abstract contract AbstractCallback is AbstractPayer {
     }
 
     modifier rvmIdOnly(address _rvm_id) {
-        require(rvm_id == address(0) || rvm_id == _rvm_id, 'Authorized RVM ID only');
+        require(rvm_id == address(0) || rvm_id == _rvm_id, "Authorized RVM ID only");
         _;
     }
 }

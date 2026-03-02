@@ -108,9 +108,8 @@ abstract contract GovernorVotesQuorumFraction is GovernorVotes {
 
         // Make sure we keep track of the original numerator in contracts upgraded from a version without checkpoints.
         if (oldQuorumNumerator != 0 && _quorumNumeratorHistory._checkpoints.length == 0) {
-            _quorumNumeratorHistory._checkpoints.push(
-                Checkpoints.Checkpoint224({_key: 0, _value: SafeCast.toUint224(oldQuorumNumerator)})
-            );
+            _quorumNumeratorHistory._checkpoints
+                .push(Checkpoints.Checkpoint224({_key: 0, _value: SafeCast.toUint224(oldQuorumNumerator)}));
         }
 
         // Set new quorum for future proposals

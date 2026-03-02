@@ -17,9 +17,8 @@ error MixerNotRegistered();
  */
 contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
     // ─── Constants ────────────────────────────────────────────────────────
-    uint256 private constant TOPIC_TRANSFER =
-        0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef;
-    
+    uint256 private constant TOPIC_TRANSFER = 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef;
+
     bytes32 private constant DETECTOR_ID = keccak256("MIXER_INTERACTION_DETECTOR_V1");
 
     // ─── State ────────────────────────────────────────────────────────
@@ -35,26 +34,15 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
     address[] private mixerAddresses;
 
     // ─── Events ───────────────────────────────────────────────────────────
-    event MixerRegistered(
-        address indexed mixerAddress,
-        string name,
-        uint256 timestamp
-    );
+    event MixerRegistered(address indexed mixerAddress, string name, uint256 timestamp);
 
-    event MixerUnregistered(
-        address indexed mixerAddress,
-        string name
-    );
+    event MixerUnregistered(address indexed mixerAddress, string name);
 
     event DetectorActivated();
     event DetectorDeactivated();
 
     event MixerInteractionDetected(
-        address indexed suspiciousAddress,
-        address indexed mixerAddress,
-        uint256 chainId,
-        uint256 value,
-        bool isDeposit
+        address indexed suspiciousAddress, address indexed mixerAddress, uint256 chainId, uint256 value, bool isDeposit
     );
 
     // ─── Constructor ──────────────────────────────────────────────────
@@ -71,17 +59,11 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
      * @return suspiciousAddress The address flagged as suspicious
      * @return payload The encoded callback payload
      */
-    function detect(
-        IReactive.LogRecord calldata log
-    )
+    function detect(IReactive.LogRecord calldata log)
         external
         view
         override
-        returns (
-            bool detected,
-            address suspiciousAddress,
-            bytes memory payload
-        )
+        returns (bool detected, address suspiciousAddress, bytes memory payload)
     {
         if (!active) {
             return (false, address(0), "");
@@ -98,7 +80,7 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
         address from = address(uint160(log.topic_1));
         address to = address(uint160(log.topic_2));
         address tokenContract = log._contract;
-        
+
         bytes memory logData = log.data;
         uint256 value;
         assembly {
@@ -119,7 +101,7 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
                 log.tx_hash,
                 DETECTOR_ID
             );
-            
+
             return (true, to, payload);
         }
 
@@ -134,7 +116,7 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
                 log.tx_hash,
                 DETECTOR_ID
             );
-            
+
             return (true, from, payload);
         }
 
@@ -171,18 +153,11 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
      * @param mixerAddress The address of the mixer contract
      * @param name Human-readable name for the mixer (e.g., "Tornado Cash 0.1 ETH")
      */
-    function registerMixer(
-        address mixerAddress,
-        string calldata name
-    ) external onlyOwner {
+    function registerMixer(address mixerAddress, string calldata name) external onlyOwner {
         if (mixerAddress == address(0)) revert InvalidMixerAddress();
         if (knownMixers[mixerAddress].isRegistered) revert MixerAlreadyRegistered();
 
-        knownMixers[mixerAddress] = MixerInfo({
-            isRegistered: true,
-            name: name,
-            addedTimestamp: block.timestamp
-        });
+        knownMixers[mixerAddress] = MixerInfo({isRegistered: true, name: name, addedTimestamp: block.timestamp});
 
         mixerAddresses.push(mixerAddress);
 
@@ -194,23 +169,16 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
      * @param mixerAddressList Array of mixer addresses
      * @param names Array of names corresponding to each mixer
      */
-    function registerMixerBatch(
-        address[] calldata mixerAddressList,
-        string[] calldata names
-    ) external onlyOwner {
+    function registerMixerBatch(address[] calldata mixerAddressList, string[] calldata names) external onlyOwner {
         require(mixerAddressList.length == names.length, "Array length mismatch");
-        
+
         for (uint256 i = 0; i < mixerAddressList.length; i++) {
             address mixerAddress = mixerAddressList[i];
-            
+
             if (mixerAddress == address(0)) revert InvalidMixerAddress();
             if (knownMixers[mixerAddress].isRegistered) continue;
 
-            knownMixers[mixerAddress] = MixerInfo({
-                isRegistered: true,
-                name: names[i],
-                addedTimestamp: block.timestamp
-            });
+            knownMixers[mixerAddress] = MixerInfo({isRegistered: true, name: names[i], addedTimestamp: block.timestamp});
 
             mixerAddresses.push(mixerAddress);
 
@@ -265,9 +233,7 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
      * @return name The name of the mixer (empty if not registered)
      * @return addedTimestamp When the mixer was added
      */
-    function getMixerInfo(
-        address mixerAddress
-    )
+    function getMixerInfo(address mixerAddress)
         external
         view
         returns (bool isRegistered, string memory name, uint256 addedTimestamp)
@@ -327,13 +293,9 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
      * @param name The name of the mixer
      */
     function _addMixer(address mixerAddress, string memory name) private {
-        knownMixers[mixerAddress] = MixerInfo({
-            isRegistered: true,
-            name: name,
-            addedTimestamp: block.timestamp
-        });
+        knownMixers[mixerAddress] = MixerInfo({isRegistered: true, name: name, addedTimestamp: block.timestamp});
         mixerAddresses.push(mixerAddress);
-        
+
         emit MixerRegistered(mixerAddress, name, block.timestamp);
     }
 }

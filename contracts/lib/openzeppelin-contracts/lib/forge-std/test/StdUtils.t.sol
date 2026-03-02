@@ -5,10 +5,7 @@ import "../src/Test.sol";
 
 contract StdUtilsMock is StdUtils {
     // We deploy a mock version so we can properly test expected reverts.
-    function getTokenBalances_(address token, address[] memory addresses)
-        external
-        returns (uint256[] memory balances)
-    {
+    function getTokenBalances_(address token, address[] memory addresses) external returns (uint256[] memory balances) {
         return getTokenBalances(token, addresses);
     }
 }

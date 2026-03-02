@@ -780,10 +780,7 @@ interface VmSafe {
     function parseJsonAddress(string calldata json, string calldata key) external pure returns (address);
 
     /// Parses a string of JSON data at `key` and coerces it to `address[]`.
-    function parseJsonAddressArray(string calldata json, string calldata key)
-        external
-        pure
-        returns (address[] memory);
+    function parseJsonAddressArray(string calldata json, string calldata key) external pure returns (address[] memory);
 
     /// Parses a string of JSON data at `key` and coerces it to `bool`.
     function parseJsonBool(string calldata json, string calldata key) external pure returns (bool);
@@ -798,10 +795,7 @@ interface VmSafe {
     function parseJsonBytes32(string calldata json, string calldata key) external pure returns (bytes32);
 
     /// Parses a string of JSON data at `key` and coerces it to `bytes32[]`.
-    function parseJsonBytes32Array(string calldata json, string calldata key)
-        external
-        pure
-        returns (bytes32[] memory);
+    function parseJsonBytes32Array(string calldata json, string calldata key) external pure returns (bytes32[] memory);
 
     /// Parses a string of JSON data at `key` and coerces it to `bytes[]`.
     function parseJsonBytesArray(string calldata json, string calldata key) external pure returns (bytes[] memory);
@@ -828,10 +822,7 @@ interface VmSafe {
         returns (bytes memory);
 
     /// Parses a string of JSON data and coerces it to type corresponding to `typeDescription`.
-    function parseJsonType(string calldata json, string calldata typeDescription)
-        external
-        pure
-        returns (bytes memory);
+    function parseJsonType(string calldata json, string calldata typeDescription) external pure returns (bytes memory);
 
     /// Parses a string of JSON data at `key` and coerces it to type corresponding to `typeDescription`.
     function parseJsonType(string calldata json, string calldata key, string calldata typeDescription)
@@ -1158,9 +1149,7 @@ interface VmSafe {
     /// Compares two `int256` values. Expects relative difference in percents to be less than or equal to `maxPercentDelta`.
     /// `maxPercentDelta` is an 18 decimal fixed point number, where 1e18 == 100%
     /// Includes error message into revert string on failure.
-    function assertApproxEqRel(int256 left, int256 right, uint256 maxPercentDelta, string calldata error)
-        external
-        pure;
+    function assertApproxEqRel(int256 left, int256 right, uint256 maxPercentDelta, string calldata error) external pure;
 
     /// Asserts that two `uint256` values are equal, formatting them with decimals in failure message.
     function assertEqDecimal(uint256 left, uint256 right, uint256 decimals) external pure;
@@ -1531,10 +1520,7 @@ interface VmSafe {
     function parseTomlAddress(string calldata toml, string calldata key) external pure returns (address);
 
     /// Parses a string of TOML data at `key` and coerces it to `address[]`.
-    function parseTomlAddressArray(string calldata toml, string calldata key)
-        external
-        pure
-        returns (address[] memory);
+    function parseTomlAddressArray(string calldata toml, string calldata key) external pure returns (address[] memory);
 
     /// Parses a string of TOML data at `key` and coerces it to `bool`.
     function parseTomlBool(string calldata toml, string calldata key) external pure returns (bool);
@@ -1549,10 +1535,7 @@ interface VmSafe {
     function parseTomlBytes32(string calldata toml, string calldata key) external pure returns (bytes32);
 
     /// Parses a string of TOML data at `key` and coerces it to `bytes32[]`.
-    function parseTomlBytes32Array(string calldata toml, string calldata key)
-        external
-        pure
-        returns (bytes32[] memory);
+    function parseTomlBytes32Array(string calldata toml, string calldata key) external pure returns (bytes32[] memory);
 
     /// Parses a string of TOML data at `key` and coerces it to `bytes[]`.
     function parseTomlBytesArray(string calldata toml, string calldata key) external pure returns (bytes[] memory);
@@ -1579,10 +1562,7 @@ interface VmSafe {
         returns (bytes memory);
 
     /// Parses a string of TOML data and coerces it to type corresponding to `typeDescription`.
-    function parseTomlType(string calldata toml, string calldata typeDescription)
-        external
-        pure
-        returns (bytes memory);
+    function parseTomlType(string calldata toml, string calldata typeDescription) external pure returns (bytes memory);
 
     /// Parses a string of TOML data at `key` and coerces it to type corresponding to `typeDescription`.
     function parseTomlType(string calldata toml, string calldata key, string calldata typeDescription)
@@ -1612,10 +1592,7 @@ interface VmSafe {
     // ======== Utilities ========
 
     /// Compute the address of a contract created with CREATE2 using the given CREATE2 deployer.
-    function computeCreate2Address(bytes32 salt, bytes32 initCodeHash, address deployer)
-        external
-        pure
-        returns (address);
+    function computeCreate2Address(bytes32 salt, bytes32 initCodeHash, address deployer) external pure returns (address);
 
     /// Compute the address of a contract created with CREATE2 using the default CREATE2 deployer.
     function computeCreate2Address(bytes32 salt, bytes32 initCodeHash) external pure returns (address);
@@ -1793,8 +1770,7 @@ interface Vm is VmSafe {
     function mockCallRevert(address callee, bytes calldata data, bytes calldata revertData) external;
 
     /// Reverts a call to an address with a specific `msg.value`, with specified revert data.
-    function mockCallRevert(address callee, uint256 msgValue, bytes calldata data, bytes calldata revertData)
-        external;
+    function mockCallRevert(address callee, uint256 msgValue, bytes calldata data, bytes calldata revertData) external;
 
     /// Mocks a call to an address, returning specified data.
     /// Calldata can either be strict or a partial match, e.g. if you only
@@ -2023,8 +1999,7 @@ interface Vm is VmSafe {
     function expectEmit(bool checkTopic1, bool checkTopic2, bool checkTopic3, bool checkData) external;
 
     /// Same as the previous method, but also checks supplied address against emitting contract.
-    function expectEmit(bool checkTopic1, bool checkTopic2, bool checkTopic3, bool checkData, address emitter)
-        external;
+    function expectEmit(bool checkTopic1, bool checkTopic2, bool checkTopic3, bool checkData, address emitter) external;
 
     /// Prepare an expected log with all topic and data checks enabled.
     /// Call this function, then emit an event, then call a function. Internally after the call, we check if

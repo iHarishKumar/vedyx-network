@@ -2,7 +2,7 @@
 
 pragma solidity >=0.8.0;
 
-import './IPayable.sol';
+import "./IPayable.sol";
 
 /// @title Interface for event subscription service.
 /// @notice Reactive contracts receive notifications about new events matching the criteria of their event subscriptions.

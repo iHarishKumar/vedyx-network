@@ -75,11 +75,15 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
     event FinalizationRewardPercentageUpdated(uint256 newPercentage);
     event MinimumVotersUpdated(uint256 newMinimumVoters);
     event MinimumTotalVotingPowerUpdated(uint256 newMinimumPower);
-    event VotingInconclusive(uint256 indexed votingId, address indexed suspiciousAddress, uint256 voterCount, uint256 totalVotingPower);
+    event VotingInconclusive(
+        uint256 indexed votingId, address indexed suspiciousAddress, uint256 voterCount, uint256 totalVotingPower
+    );
 
     // ─── Modifiers ────────────────────────────────────────────────────────
     modifier onlyCallbackAuthorizer() {
-        if (!senders[msg.sender] && !hasRole(GOVERNANCE_ROLE, msg.sender)) revert VedyxErrors.UnauthorizedCallback();
+        if (!senders[msg.sender] && !hasRole(GOVERNANCE_ROLE, msg.sender)) {
+            revert VedyxErrors.UnauthorizedCallback();
+        }
         _;
     }
 
@@ -97,7 +101,9 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
             revert VedyxErrors.InvalidAddress();
         }
         if (_treasury == address(0)) revert VedyxErrors.InvalidTreasury();
-        if (_finalizationFeePercentage > 1000) revert VedyxErrors.InvalidFeePercentage();
+        if (_finalizationFeePercentage > 1000) {
+            revert VedyxErrors.InvalidFeePercentage();
+        }
 
         stakingToken = IERC20(_stakingToken);
         callbackAuthorizer = _callbackAuthorizer;
@@ -137,7 +143,9 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
         uint256 availableAmount = VotingPowerLib.getAvailableStake(staker);
 
         if (amount > availableAmount) revert VedyxErrors.InsufficientStake();
-        if (staker.lockedAmount > 0) revert VedyxErrors.CannotUnstakeWhenVotingIsActive();
+        if (staker.lockedAmount > 0) {
+            revert VedyxErrors.CannotUnstakeWhenVotingIsActive();
+        }
 
         staker.stakedAmount -= amount;
         stakingToken.transfer(msg.sender, amount);
@@ -156,10 +164,12 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
         uint256 txHash,
         bytes32 detectorId
     ) external onlyCallbackAuthorizer returns (uint256 votingId) {
-        if (suspiciousAddress == address(0)) revert VedyxErrors.InvalidAddress();
+        if (suspiciousAddress == address(0)) {
+            revert VedyxErrors.InvalidAddress();
+        }
 
         VedyxTypes.AddressVerdict storage verdict = addressVerdicts[suspiciousAddress];
-        
+
         bool hasVerdict = verdict.hasVerdict;
         bool isSuspicious = verdict.isSuspicious;
 
@@ -167,14 +177,9 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
             uint256 newIncidentCount = verdict.totalIncidents + 1;
             verdict.totalIncidents = newIncidentCount;
             addressVotingHistory[suspiciousAddress].push(0);
-            
-            emit AddressAutoMarkedSuspicious(
-                suspiciousAddress,
-                newIncidentCount,
-                verdict.lastVotingId,
-                txHash
-            );
-            
+
+            emit AddressAutoMarkedSuspicious(suspiciousAddress, newIncidentCount, verdict.lastVotingId, txHash);
+
             return 0;
         }
 
@@ -210,9 +215,13 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
         VedyxTypes.Voting storage voting = votings[votingId];
 
         if (voting.startTime == 0) revert VedyxErrors.InvalidVotingId();
-        if (block.timestamp >= voting.endTime) revert VedyxErrors.VotingAlreadyEnded();
+        if (block.timestamp >= voting.endTime) {
+            revert VedyxErrors.VotingAlreadyEnded();
+        }
         if (voting.finalized) revert VedyxErrors.VotingAlreadyEnded();
-        if (voting.votes[msg.sender].hasVoted) revert VedyxErrors.AlreadyVoted();
+        if (voting.votes[msg.sender].hasVoted) {
+            revert VedyxErrors.AlreadyVoted();
+        }
         if (msg.sender == voting.report.suspiciousAddress) {
             revert VedyxErrors.CannotVoteOnOwnAddress();
         }
@@ -224,20 +233,23 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
         }
 
         uint256 availableStake = VotingPowerLib.getAvailableStake(staker);
-        if (availableStake < minimumStake) revert VedyxErrors.InsufficientStake();
+        if (availableStake < minimumStake) {
+            revert VedyxErrors.InsufficientStake();
+        }
 
-        int256 votingPower = VotingPowerLib.calculateVotingPower(
-            availableStake,
-            staker.karmaPoints
-        );
+        int256 votingPower = VotingPowerLib.calculateVotingPower(availableStake, staker.karmaPoints);
 
         if (votingPower <= 0) revert VedyxErrors.InsufficientVotingPower();
 
+        // Record vote with stake snapshot for accountability
+        // Note: stakedSnapshot is used for penalty calculation to maintain
+        // accountability to the voter's original commitment, discouraging
+        // careless voting in multiple concurrent votings
         voting.votes[msg.sender] = VedyxTypes.Vote({
             hasVoted: true,
             votedFor: voteSuspicious,
             votingPower: uint256(votingPower),
-            stakedSnapshot: availableStake
+            stakedSnapshot: availableStake // Commitment amount at vote time
         });
 
         voting.voters.push(msg.sender);
@@ -261,7 +273,9 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
         VedyxTypes.Voting storage voting = votings[votingId];
 
         if (voting.startTime == 0) revert VedyxErrors.InvalidVotingId();
-        if (block.timestamp < voting.endTime) revert VedyxErrors.VotingStillActive();
+        if (block.timestamp < voting.endTime) {
+            revert VedyxErrors.VotingStillActive();
+        }
         if (voting.finalized) revert VedyxErrors.VotingAlreadyEnded();
 
         voting.finalized = true;
@@ -270,24 +284,28 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
         bool meetsVoterQuorum = voting.voters.length >= minimumVoters;
         bool meetsVotingPowerQuorum = voting.totalVotingPower >= minimumTotalVotingPower;
 
+        address suspiciousAddress = voting.report.suspiciousAddress;
+        VedyxTypes.AddressVerdict storage verdict = addressVerdicts[suspiciousAddress];
+
         // If quorum not met, mark as inconclusive and return early
         if (!meetsVoterQuorum || !meetsVotingPowerQuorum) {
             voting.isInconclusive = true;
             _removeActiveVoting(votingId);
-            
+
             // Unlock stakes for all voters without penalties or rewards
             for (uint256 i = 0; i < voting.voters.length; i++) {
                 address voter = voting.voters[i];
                 VedyxTypes.Staker storage staker = stakers[voter];
                 staker.lockedAmount -= minimumStake;
             }
-            
+
             emit VotingInconclusive(
-                votingId,
-                voting.report.suspiciousAddress,
-                voting.voters.length,
-                voting.totalVotingPower
+                votingId, voting.report.suspiciousAddress, voting.voters.length, voting.totalVotingPower
             );
+            verdict.hasVerdict = true;
+            verdict.isSuspicious = false;
+            verdict.lastVotingId = votingId;
+            verdict.verdictTimestamp = block.timestamp;
             return;
         }
 
@@ -296,35 +314,20 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
         bool consensus = voting.votesFor > voting.votesAgainst;
         voting.isSuspicious = consensus;
 
-        address suspiciousAddress = voting.report.suspiciousAddress;
-        VedyxTypes.AddressVerdict storage verdict = addressVerdicts[suspiciousAddress];
         verdict.hasVerdict = true;
         verdict.isSuspicious = consensus;
         verdict.lastVotingId = votingId;
         verdict.verdictTimestamp = block.timestamp;
 
-        emit VerdictRecorded(
-            suspiciousAddress,
-            votingId,
-            consensus,
-            block.timestamp
-        );
+        emit VerdictRecorded(suspiciousAddress, votingId, consensus, block.timestamp);
 
         _processVotingResults(votingId, consensus);
         _removeActiveVoting(votingId);
 
-        emit VotingFinalized(
-            votingId,
-            voting.report.suspiciousAddress,
-            consensus,
-            voting.votesFor,
-            voting.votesAgainst
-        );
+        emit VotingFinalized(votingId, voting.report.suspiciousAddress, consensus, voting.votesFor, voting.votesAgainst);
 
-        uint256 rewardAmount = VotingResultsLib.calculateFinalizationReward(
-            totalFeesCollected,
-            finalizationRewardPercentage
-        );
+        uint256 rewardAmount =
+            VotingResultsLib.calculateFinalizationReward(totalFeesCollected, finalizationRewardPercentage);
 
         if (rewardAmount > 0 && rewardAmount <= totalFeesCollected) {
             totalFeesCollected -= rewardAmount;
@@ -338,35 +341,19 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
     function _processVotingResults(uint256 votingId, bool consensus) internal {
         VedyxTypes.Voting storage voting = votings[votingId];
 
-        VotingResultsLib.PenaltyCollectionResult memory result = 
-            VotingResultsLib.collectPenalties(
-                voting.voters,
-                voting.votes,
-                stakers,
-                consensus,
-                votingId,
-                penaltyPercentage,
-                minimumStake
-            );
+        VotingResultsLib.PenaltyCollectionResult memory result = VotingResultsLib.collectPenalties(
+            voting.voters, voting.votes, stakers, consensus, votingId, penaltyPercentage, minimumStake
+        );
 
-        (uint256 finalizationFee, uint256 penaltiesForDistribution) = 
-            VotingResultsLib.calculateFinalizationFee(
-                result.totalPenalties,
-                finalizationFeePercentage
-            );
+        (uint256 finalizationFee, uint256 penaltiesForDistribution) =
+            VotingResultsLib.calculateFinalizationFee(result.totalPenalties, finalizationFeePercentage);
 
         if (finalizationFee > 0) {
             totalFeesCollected += finalizationFee;
             emit FeeCollected(address(this), finalizationFee);
         }
 
-        VotingResultsLib.applyKarmaPenalties(
-            voting.voters,
-            voting.votes,
-            stakers,
-            consensus,
-            karmaPenalty
-        );
+        VotingResultsLib.applyKarmaPenalties(voting.voters, voting.votes, stakers, consensus, karmaPenalty);
 
         VotingResultsLib.distributeRewards(
             voting.voters,
@@ -429,12 +416,12 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
 
     function clearAddressVerdict(address suspiciousAddress) external onlyRole(GOVERNANCE_ROLE) {
         VedyxTypes.AddressVerdict storage verdict = addressVerdicts[suspiciousAddress];
-        
+
         if (!verdict.hasVerdict) revert VedyxErrors.NoVerdictToClear();
-        
+
         verdict.hasVerdict = false;
         verdict.isSuspicious = false;
-        
+
         emit VerdictCleared(suspiciousAddress, msg.sender);
     }
 
@@ -450,11 +437,11 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
         emit MinimumTotalVotingPowerUpdated(newMinimumPower);
     }
 
-    function setFinalizationRewardPercentage(
-        uint256 newPercentage
-    ) external onlyRole(PARAMETER_ADMIN_ROLE) {
+    function setFinalizationRewardPercentage(uint256 newPercentage) external onlyRole(PARAMETER_ADMIN_ROLE) {
         if (newPercentage > 1000) revert VedyxErrors.InvalidFeePercentage();
-        if (newPercentage >= finalizationFeePercentage) revert VedyxErrors.InvalidFeePercentage();
+        if (newPercentage >= finalizationFeePercentage) {
+            revert VedyxErrors.InvalidFeePercentage();
+        }
         finalizationRewardPercentage = newPercentage;
         emit FinalizationRewardPercentageUpdated(newPercentage);
     }
@@ -465,11 +452,11 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
         emit TreasuryUpdated(newTreasury);
     }
 
-    function setFinalizationFeePercentage(
-        uint256 newFeePercentage
-    ) external onlyRole(TREASURY_ROLE) {
+    function setFinalizationFeePercentage(uint256 newFeePercentage) external onlyRole(TREASURY_ROLE) {
         if (newFeePercentage > 1000) revert VedyxErrors.InvalidFeePercentage();
-        if (newFeePercentage <= finalizationRewardPercentage) revert VedyxErrors.InvalidFeePercentage();
+        if (newFeePercentage <= finalizationRewardPercentage) {
+            revert VedyxErrors.InvalidFeePercentage();
+        }
         finalizationFeePercentage = newFeePercentage;
         emit FinalizationFeeUpdated(newFeePercentage);
     }
@@ -486,9 +473,7 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
 
     // ─── View Functions ───────────────────────────────────────────────────
 
-    function getVotingDetails(
-        uint256 votingId
-    )
+    function getVotingDetails(uint256 votingId)
         external
         view
         returns (
@@ -515,17 +500,16 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
         );
     }
 
-    function getVote(
-        uint256 votingId,
-        address voter
-    ) external view returns (bool hasVoted, bool votedFor, uint256 votingPower) {
+    function getVote(uint256 votingId, address voter)
+        external
+        view
+        returns (bool hasVoted, bool votedFor, uint256 votingPower)
+    {
         VedyxTypes.Vote memory vote = votings[votingId].votes[voter];
         return (vote.hasVoted, vote.votedFor, vote.votingPower);
     }
 
-    function getStakerInfo(
-        address stakerAddress
-    ) external view returns (VedyxTypes.Staker memory staker) {
+    function getStakerInfo(address stakerAddress) external view returns (VedyxTypes.Staker memory staker) {
         staker = stakers[stakerAddress];
     }
 
@@ -533,9 +517,7 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
         return activeVotingIds;
     }
 
-    function getAddressVotingHistory(
-        address suspiciousAddress
-    ) external view returns (uint256[] memory) {
+    function getAddressVotingHistory(address suspiciousAddress) external view returns (uint256[] memory) {
         return addressVotingHistory[suspiciousAddress];
     }
 
@@ -555,13 +537,17 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
         return votings[votingId].voters;
     }
 
-    function getAddressVerdict(address addr) external view returns (
-        bool hasVerdict,
-        bool isSuspicious,
-        uint256 lastVotingId,
-        uint256 verdictTimestamp,
-        uint256 totalIncidents
-    ) {
+    function getAddressVerdict(address addr)
+        external
+        view
+        returns (
+            bool hasVerdict,
+            bool isSuspicious,
+            uint256 lastVotingId,
+            uint256 verdictTimestamp,
+            uint256 totalIncidents
+        )
+    {
         VedyxTypes.AddressVerdict memory verdict = addressVerdicts[addr];
         return (
             verdict.hasVerdict,

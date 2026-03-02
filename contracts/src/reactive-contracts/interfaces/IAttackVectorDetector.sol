@@ -17,16 +17,10 @@ interface IAttackVectorDetector {
      * @return suspiciousAddress The address flagged as suspicious (if detected)
      * @return payload The encoded callback payload to send to the destination chain
      */
-    function detect(
-        IReactive.LogRecord calldata log
-    )
+    function detect(IReactive.LogRecord calldata log)
         external
         view
-        returns (
-            bool detected,
-            address suspiciousAddress,
-            bytes memory payload
-        );
+        returns (bool detected, address suspiciousAddress, bytes memory payload);
 
     /**
      * @notice Returns the event topic_0 that this detector monitors

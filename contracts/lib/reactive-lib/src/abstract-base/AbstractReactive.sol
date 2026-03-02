@@ -2,14 +2,15 @@
 
 pragma solidity >=0.8.0;
 
-import '../interfaces/IReactive.sol';
-import '../interfaces/ISystemContract.sol';
-import './AbstractPayer.sol';
+import "../interfaces/IReactive.sol";
+import "../interfaces/ISystemContract.sol";
+import "./AbstractPayer.sol";
 
 /// @title Abstract base contract for reactive contracts.
 abstract contract AbstractReactive is IReactive, AbstractPayer {
     uint256 internal constant REACTIVE_IGNORE = 0xa65f96fc951c35ead38878e0f0b7a3c744a6f5ccc1476b313353ce31712313ad;
-    ISystemContract internal constant SERVICE_ADDR = ISystemContract(payable(0x0000000000000000000000000000000000fffFfF));
+    ISystemContract internal constant SERVICE_ADDR =
+        ISystemContract(payable(0x0000000000000000000000000000000000fffFfF));
 
     /// @notice Indicates whether this is a ReactVM instance of the contract.
     bool internal vm;
@@ -23,12 +24,12 @@ abstract contract AbstractReactive is IReactive, AbstractPayer {
     }
 
     modifier rnOnly() {
-        require(!vm, 'Reactive Network only');
+        require(!vm, "Reactive Network only");
         _;
     }
 
     modifier vmOnly() {
-        require(vm, 'VM only');
+        require(vm, "VM only");
         _;
     }
 

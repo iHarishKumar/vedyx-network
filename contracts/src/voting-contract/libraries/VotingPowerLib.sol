@@ -23,10 +23,7 @@ library VotingPowerLib {
      * @param karmaPoints Current karma points
      * @return Voting power as signed integer (can be negative)
      */
-    function calculateVotingPower(
-        uint256 availableStake,
-        int256 karmaPoints
-    ) internal pure returns (int256) {
+    function calculateVotingPower(uint256 availableStake, int256 karmaPoints) internal pure returns (int256) {
         int256 basePower = int256(availableStake);
         int256 karmaEffect = calculateKarmaEffect(availableStake, karmaPoints);
         return basePower + karmaEffect;
@@ -38,10 +35,7 @@ library VotingPowerLib {
      * @param karmaPoints Current karma points
      * @return Karma effect (positive for bonus, negative for penalty)
      */
-    function calculateKarmaEffect(
-        uint256 stakeAmount,
-        int256 karmaPoints
-    ) internal pure returns (int256) {
+    function calculateKarmaEffect(uint256 stakeAmount, int256 karmaPoints) internal pure returns (int256) {
         if (karmaPoints >= 0) {
             return calculateLinearBonus(stakeAmount, karmaPoints);
         } else {
@@ -55,13 +49,8 @@ library VotingPowerLib {
      * @param karmaPoints Positive karma points
      * @return Bonus amount
      */
-    function calculateLinearBonus(
-        uint256 stakeAmount,
-        int256 karmaPoints
-    ) internal pure returns (int256) {
-        return int256(
-            stakeAmount.mulDivDown(uint256(karmaPoints), KARMA_BONUS_DIVISOR)
-        );
+    function calculateLinearBonus(uint256 stakeAmount, int256 karmaPoints) internal pure returns (int256) {
+        return int256(stakeAmount.mulDivDown(uint256(karmaPoints), KARMA_BONUS_DIVISOR));
     }
 
     /**
@@ -70,20 +59,12 @@ library VotingPowerLib {
      * @param karmaPoints Negative karma points
      * @return Penalty amount (negative)
      */
-    function calculateExponentialPenalty(
-        uint256 stakeAmount,
-        int256 karmaPoints
-    ) internal pure returns (int256) {
+    function calculateExponentialPenalty(uint256 stakeAmount, int256 karmaPoints) internal pure returns (int256) {
         uint256 absKarma = uint256(-karmaPoints);
 
-        uint256 squaredKarma = absKarma > KARMA_OVERFLOW_THRESHOLD
-            ? MAX_SQUARED_KARMA
-            : (absKarma * absKarma);
+        uint256 squaredKarma = absKarma > KARMA_OVERFLOW_THRESHOLD ? MAX_SQUARED_KARMA : (absKarma * absKarma);
 
-        uint256 penaltyAmount = stakeAmount.mulDivDown(
-            squaredKarma,
-            KARMA_PENALTY_DIVISOR
-        );
+        uint256 penaltyAmount = stakeAmount.mulDivDown(squaredKarma, KARMA_PENALTY_DIVISOR);
 
         return -int256(penaltyAmount);
     }
@@ -93,12 +74,8 @@ library VotingPowerLib {
      * @param staker Staker information
      * @return Available (unlocked) stake amount
      */
-    function getAvailableStake(
-        VedyxTypes.Staker memory staker
-    ) internal pure returns (uint256) {
-        return staker.stakedAmount > staker.lockedAmount
-            ? staker.stakedAmount - staker.lockedAmount
-            : 0;
+    function getAvailableStake(VedyxTypes.Staker memory staker) internal pure returns (uint256) {
+        return staker.stakedAmount > staker.lockedAmount ? staker.stakedAmount - staker.lockedAmount : 0;
     }
 
     /**
@@ -107,10 +84,7 @@ library VotingPowerLib {
      * @param minimumKarma Minimum required karma
      * @return True if karma is sufficient
      */
-    function hasSufficientKarma(
-        int256 karmaPoints,
-        int256 minimumKarma
-    ) internal pure returns (bool) {
+    function hasSufficientKarma(int256 karmaPoints, int256 minimumKarma) internal pure returns (bool) {
         return karmaPoints >= minimumKarma;
     }
 }

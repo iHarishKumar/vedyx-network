@@ -39,12 +39,15 @@ library VedyxTypes {
 
     /**
      * @notice Individual vote details
+     * @dev stakedSnapshot represents the voter's stake commitment at vote time.
+     *      This snapshot is used for penalty calculations to maintain accountability
+     *      and discourage careless voting in multiple concurrent votings.
      */
     struct Vote {
         bool hasVoted;
         bool votedFor;
         uint256 votingPower;
-        uint256 stakedSnapshot;
+        uint256 stakedSnapshot; // Stake at vote time - used for penalty calculation
     }
 
     /**

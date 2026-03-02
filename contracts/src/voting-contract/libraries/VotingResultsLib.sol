@@ -15,21 +15,9 @@ library VotingResultsLib {
     uint256 private constant BASIS_POINTS_DIVISOR = 10000;
 
     // ─── Events ───────────────────────────────────────────────────────────
-    event PenaltyApplied(
-        address indexed voter,
-        uint256 indexed votingId,
-        uint256 penaltyAmount
-    );
-    event KarmaUpdated(
-        address indexed voter,
-        int256 karmaChange,
-        int256 newKarma
-    );
-    event VoterRewarded(
-        address indexed voter,
-        uint256 indexed votingId,
-        uint256 rewardAmount
-    );
+    event PenaltyApplied(address indexed voter, uint256 indexed votingId, uint256 penaltyAmount);
+    event KarmaUpdated(address indexed voter, int256 karmaChange, int256 newKarma);
+    event VoterRewarded(address indexed voter, uint256 indexed votingId, uint256 rewardAmount);
     event FeeCollected(address indexed collector, uint256 feeAmount);
 
     /**
@@ -82,11 +70,7 @@ library VotingResultsLib {
             if (votedCorrectly) {
                 result.correctVotersTotalPower += vote.votingPower;
             } else {
-                uint256 penalty = calculatePenalty(
-                    vote.stakedSnapshot,
-                    penaltyPercentage,
-                    staker.stakedAmount
-                );
+                uint256 penalty = calculatePenalty(vote.stakedSnapshot, penaltyPercentage, staker.stakedAmount);
 
                 result.totalPenalties += penalty;
                 staker.stakedAmount = staker.stakedAmount - penalty;
@@ -100,21 +84,33 @@ library VotingResultsLib {
 
     /**
      * @notice Calculate penalty amount for a voter
-     * @param stakedSnapshot Snapshot of stake at vote time
+     * @dev IMPORTANT: Uses stakedSnapshot (not currentStake) for penalty calculation.
+     *      This is an intentional design choice to create a deterrent mechanism:
+     *
+     *      - Users are penalized based on their stake commitment at vote time
+     *      - Even if other concurrent votings reduce their stake, they remain
+     *        accountable for the full penalty on their original commitment
+     *      - This discourages careless voting in multiple concurrent votings
+     *      - Users cannot "game" the system by having penalties calculated on
+     *        progressively smaller amounts
+     *
+     *      The currentStake parameter acts as bankruptcy protection - penalties
+     *      are capped at what the user actually has to prevent over-penalization.
+     *
+     * @param stakedSnapshot Snapshot of stake at vote time (the commitment amount)
      * @param penaltyPercentage Penalty percentage in basis points
-     * @param currentStake Current staked amount
-     * @return Penalty amount
+     * @param currentStake Current staked amount (used only for capping)
+     * @return Penalty amount (capped at currentStake if necessary)
      */
-    function calculatePenalty(
-        uint256 stakedSnapshot,
-        uint256 penaltyPercentage,
-        uint256 currentStake
-    ) internal pure returns (uint256) {
-        uint256 penalty = stakedSnapshot.mulDivDown(
-            penaltyPercentage,
-            BASIS_POINTS_DIVISOR
-        );
+    function calculatePenalty(uint256 stakedSnapshot, uint256 penaltyPercentage, uint256 currentStake)
+        internal
+        pure
+        returns (uint256)
+    {
+        // Calculate penalty based on original commitment
+        uint256 penalty = stakedSnapshot.mulDivDown(penaltyPercentage, BASIS_POINTS_DIVISOR);
 
+        // Bankruptcy protection: cap at current stake
         if (penalty > currentStake) {
             penalty = currentStake;
         }
@@ -129,15 +125,13 @@ library VotingResultsLib {
      * @return finalizationFee Fee amount
      * @return penaltiesForDistribution Remaining penalties after fee
      */
-    function calculateFinalizationFee(
-        uint256 totalPenalties,
-        uint256 feePercentage
-    ) internal pure returns (uint256 finalizationFee, uint256 penaltiesForDistribution) {
+    function calculateFinalizationFee(uint256 totalPenalties, uint256 feePercentage)
+        internal
+        pure
+        returns (uint256 finalizationFee, uint256 penaltiesForDistribution)
+    {
         if (totalPenalties > 0 && feePercentage > 0) {
-            finalizationFee = totalPenalties.mulDivDown(
-                feePercentage,
-                BASIS_POINTS_DIVISOR
-            );
+            finalizationFee = totalPenalties.mulDivDown(feePercentage, BASIS_POINTS_DIVISOR);
             penaltiesForDistribution = totalPenalties - finalizationFee;
         } else {
             finalizationFee = 0;
@@ -171,11 +165,7 @@ library VotingResultsLib {
 
             if (!votedCorrectly) {
                 staker.karmaPoints = staker.karmaPoints - int256(karmaPenalty);
-                emit KarmaUpdated(
-                    voter,
-                    -int256(karmaPenalty),
-                    staker.karmaPoints
-                );
+                emit KarmaUpdated(voter, -int256(karmaPenalty), staker.karmaPoints);
             }
         }
     }
@@ -213,18 +203,11 @@ library VotingResultsLib {
                 staker.karmaPoints = staker.karmaPoints + int256(karmaReward);
                 staker.correctVotes = staker.correctVotes + 1;
 
-                emit KarmaUpdated(
-                    voter,
-                    int256(karmaReward),
-                    staker.karmaPoints
-                );
+                emit KarmaUpdated(voter, int256(karmaReward), staker.karmaPoints);
 
                 // Distribute proportional reward from penalties
                 if (penaltiesForDistribution > 0 && correctVotersTotalPower > 0) {
-                    uint256 voterReward = penaltiesForDistribution.mulDivDown(
-                        vote.votingPower,
-                        correctVotersTotalPower
-                    );
+                    uint256 voterReward = penaltiesForDistribution.mulDivDown(vote.votingPower, correctVotersTotalPower);
 
                     if (voterReward > 0) {
                         staker.stakedAmount = staker.stakedAmount + voterReward;
@@ -241,17 +224,15 @@ library VotingResultsLib {
      * @param rewardPercentage Reward percentage in basis points
      * @return Reward amount
      */
-    function calculateFinalizationReward(
-        uint256 totalFeesCollected,
-        uint256 rewardPercentage
-    ) internal pure returns (uint256) {
+    function calculateFinalizationReward(uint256 totalFeesCollected, uint256 rewardPercentage)
+        internal
+        pure
+        returns (uint256)
+    {
         if (totalFeesCollected == 0 || rewardPercentage == 0) {
             return 0;
         }
 
-        return totalFeesCollected.mulDivDown(
-            rewardPercentage,
-            BASIS_POINTS_DIVISOR
-        );
+        return totalFeesCollected.mulDivDown(rewardPercentage, BASIS_POINTS_DIVISOR);
     }
 }

@@ -34,21 +34,12 @@ contract AccessControlTest is Test {
     // Role constants
     bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
     bytes32 public constant GOVERNANCE_ROLE = keccak256("GOVERNANCE_ROLE");
-    bytes32 public constant PARAMETER_ADMIN_ROLE =
-        keccak256("PARAMETER_ADMIN_ROLE");
+    bytes32 public constant PARAMETER_ADMIN_ROLE = keccak256("PARAMETER_ADMIN_ROLE");
     bytes32 public constant TREASURY_ROLE = keccak256("TREASURY_ROLE");
 
     // Events
-    event RoleGranted(
-        bytes32 indexed role,
-        address indexed account,
-        address indexed sender
-    );
-    event RoleRevoked(
-        bytes32 indexed role,
-        address indexed account,
-        address indexed sender
-    );
+    event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender);
+    event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender);
     event CallbackAuthorizerUpdated(address newAuthorizer);
     event MinimumStakeUpdated(uint256 newMinimum);
     event VotingDurationUpdated(uint256 newDuration);
@@ -172,9 +163,7 @@ contract AccessControlTest is Test {
         votingContract.grantRole(TREASURY_ROLE, governanceAddress);
 
         assertTrue(votingContract.hasRole(GOVERNANCE_ROLE, governanceAddress));
-        assertTrue(
-            votingContract.hasRole(PARAMETER_ADMIN_ROLE, governanceAddress)
-        );
+        assertTrue(votingContract.hasRole(PARAMETER_ADMIN_ROLE, governanceAddress));
         assertTrue(votingContract.hasRole(TREASURY_ROLE, governanceAddress));
     }
 
@@ -232,9 +221,7 @@ contract AccessControlTest is Test {
         assertEq(votingContract.minimumKarmaToVote(), newMinimum);
     }
 
-    function test_GovernanceRole_RevertWhen_UnauthorizedCallsSetCallbackAuthorizer()
-        public
-    {
+    function test_GovernanceRole_RevertWhen_UnauthorizedCallsSetCallbackAuthorizer() public {
         address newAuthorizer = makeAddr("newAuthorizer");
 
         vm.prank(unauthorizedUser);
@@ -242,25 +229,19 @@ contract AccessControlTest is Test {
         votingContract.setCallbackAuthorizer(newAuthorizer);
     }
 
-    function test_GovernanceRole_RevertWhen_UnauthorizedCallsSetMinimumStake()
-        public
-    {
+    function test_GovernanceRole_RevertWhen_UnauthorizedCallsSetMinimumStake() public {
         vm.prank(unauthorizedUser);
         vm.expectRevert();
         votingContract.setMinimumStake(200 ether);
     }
 
-    function test_GovernanceRole_RevertWhen_UnauthorizedCallsSetVotingDuration()
-        public
-    {
+    function test_GovernanceRole_RevertWhen_UnauthorizedCallsSetVotingDuration() public {
         vm.prank(unauthorizedUser);
         vm.expectRevert();
         votingContract.setVotingDuration(14 days);
     }
 
-    function test_GovernanceRole_RevertWhen_UnauthorizedCallsSetPenaltyPercentage()
-        public
-    {
+    function test_GovernanceRole_RevertWhen_UnauthorizedCallsSetPenaltyPercentage() public {
         vm.prank(unauthorizedUser);
         vm.expectRevert();
         votingContract.setPenaltyPercentage(2000);
@@ -290,9 +271,7 @@ contract AccessControlTest is Test {
         assertEq(votingContract.karmaPenalty(), newPenalty);
     }
 
-    function test_ParameterAdminRole_CanSetFinalizationRewardPercentage()
-        public
-    {
+    function test_ParameterAdminRole_CanSetFinalizationRewardPercentage() public {
         votingContract.grantRole(PARAMETER_ADMIN_ROLE, parameterAdmin);
         // First set finalization fee higher to satisfy validation
         votingContract.setFinalizationFeePercentage(600);
@@ -305,25 +284,19 @@ contract AccessControlTest is Test {
         assertEq(votingContract.finalizationRewardPercentage(), newPercentage);
     }
 
-    function test_ParameterAdminRole_RevertWhen_UnauthorizedCallsSetKarmaReward()
-        public
-    {
+    function test_ParameterAdminRole_RevertWhen_UnauthorizedCallsSetKarmaReward() public {
         vm.prank(unauthorizedUser);
         vm.expectRevert();
         votingContract.setKarmaReward(20);
     }
 
-    function test_ParameterAdminRole_RevertWhen_UnauthorizedCallsSetKarmaPenalty()
-        public
-    {
+    function test_ParameterAdminRole_RevertWhen_UnauthorizedCallsSetKarmaPenalty() public {
         vm.prank(unauthorizedUser);
         vm.expectRevert();
         votingContract.setKarmaPenalty(10);
     }
 
-    function test_ParameterAdminRole_RevertWhen_UnauthorizedCallsSetFinalizationRewardPercentage()
-        public
-    {
+    function test_ParameterAdminRole_RevertWhen_UnauthorizedCallsSetFinalizationRewardPercentage() public {
         vm.prank(unauthorizedUser);
         vm.expectRevert();
         votingContract.setFinalizationRewardPercentage(300);
@@ -374,15 +347,8 @@ contract AccessControlTest is Test {
         votingContract.stake(300 ether);
 
         vm.prank(callbackAuthorizer);
-        uint256 votingId = votingContract.tagSuspicious(
-            makeAddr("suspicious"),
-            1,
-            address(0x123),
-            1000 ether,
-            18,
-            12345,
-            bytes32(0)
-        );
+        uint256 votingId =
+            votingContract.tagSuspicious(makeAddr("suspicious"), 1, address(0x123), 1000 ether, 18, 12345, bytes32(0));
 
         vm.prank(user1);
         votingContract.castVote(votingId, true);
@@ -403,25 +369,19 @@ contract AccessControlTest is Test {
         assertEq(votingContract.totalFeesCollected(), 0);
     }
 
-    function test_TreasuryRole_RevertWhen_UnauthorizedCallsSetTreasury()
-        public
-    {
+    function test_TreasuryRole_RevertWhen_UnauthorizedCallsSetTreasury() public {
         vm.prank(unauthorizedUser);
         vm.expectRevert();
         votingContract.setTreasury(makeAddr("newTreasury"));
     }
 
-    function test_TreasuryRole_RevertWhen_UnauthorizedCallsSetFinalizationFeePercentage()
-        public
-    {
+    function test_TreasuryRole_RevertWhen_UnauthorizedCallsSetFinalizationFeePercentage() public {
         vm.prank(unauthorizedUser);
         vm.expectRevert();
         votingContract.setFinalizationFeePercentage(300);
     }
 
-    function test_TreasuryRole_RevertWhen_UnauthorizedCallsTransferFeesToTreasury()
-        public
-    {
+    function test_TreasuryRole_RevertWhen_UnauthorizedCallsTransferFeesToTreasury() public {
         vm.prank(unauthorizedUser);
         vm.expectRevert();
         votingContract.transferFeesToTreasury(100 ether);

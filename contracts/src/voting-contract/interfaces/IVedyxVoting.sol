@@ -14,17 +14,8 @@ interface IVedyxVoting {
     event FeeCollected(address indexed staker, uint256 feeAmount);
     event TreasuryUpdated(address indexed newTreasury);
     event FinalizationFeeUpdated(uint256 newFeePercentage);
-    event VotingStarted(
-        uint256 indexed votingId,
-        address indexed suspiciousAddress,
-        uint256 endTime
-    );
-    event VoteCast(
-        uint256 indexed votingId,
-        address indexed voter,
-        bool votedFor,
-        uint256 votingPower
-    );
+    event VotingStarted(uint256 indexed votingId, address indexed suspiciousAddress, uint256 endTime);
+    event VoteCast(uint256 indexed votingId, address indexed voter, bool votedFor, uint256 votingPower);
     event VotingFinalized(
         uint256 indexed votingId,
         address indexed suspiciousAddress,
@@ -33,26 +24,13 @@ interface IVedyxVoting {
         uint256 votesAgainst
     );
     event AddressAutoMarkedSuspicious(
-        address indexed suspiciousAddress,
-        uint256 indexed incidentNumber,
-        uint256 previousVotingId,
-        uint256 txHash
+        address indexed suspiciousAddress, uint256 indexed incidentNumber, uint256 previousVotingId, uint256 txHash
     );
     event VerdictRecorded(
-        address indexed suspiciousAddress,
-        uint256 indexed votingId,
-        bool isSuspicious,
-        uint256 timestamp
+        address indexed suspiciousAddress, uint256 indexed votingId, bool isSuspicious, uint256 timestamp
     );
-    event VerdictCleared(
-        address indexed suspiciousAddress,
-        address indexed clearedBy
-    );
-    event FinalizationRewardPaid(
-        uint256 indexed votingId,
-        address indexed finalizer,
-        uint256 rewardAmount
-    );
+    event VerdictCleared(address indexed suspiciousAddress, address indexed clearedBy);
+    event FinalizationRewardPaid(uint256 indexed votingId, address indexed finalizer, uint256 rewardAmount);
 
     // ─── Staking Functions ────────────────────────────────────────────────
     function stake(uint256 amount) external;
@@ -76,9 +54,7 @@ interface IVedyxVoting {
     ) external returns (uint256 votingId);
 
     // ─── View Functions ───────────────────────────────────────────────────
-    function getVotingDetails(
-        uint256 votingId
-    )
+    function getVotingDetails(uint256 votingId)
         external
         view
         returns (
@@ -92,32 +68,24 @@ interface IVedyxVoting {
             bool isInconclusive
         );
 
-    function getVote(
-        uint256 votingId,
-        address voter
-    ) external view returns (bool hasVoted, bool votedFor, uint256 votingPower);
+    function getVote(uint256 votingId, address voter)
+        external
+        view
+        returns (bool hasVoted, bool votedFor, uint256 votingPower);
 
-    function getStakerInfo(
-        address staker
-    ) external view returns (VedyxTypes.Staker memory);
+    function getStakerInfo(address staker) external view returns (VedyxTypes.Staker memory);
 
     function getActiveVotings() external view returns (uint256[] memory);
 
-    function getAddressVotingHistory(
-        address suspiciousAddress
-    ) external view returns (uint256[] memory);
+    function getAddressVotingHistory(address suspiciousAddress) external view returns (uint256[] memory);
 
     function getVotingPower(address voter) external view returns (int256);
 
     function getVoterAccuracy(address voter) external view returns (uint256);
 
-    function getVoters(
-        uint256 votingId
-    ) external view returns (address[] memory);
+    function getVoters(uint256 votingId) external view returns (address[] memory);
 
-    function getAddressVerdict(
-        address addr
-    )
+    function getAddressVerdict(address addr)
         external
         view
         returns (
