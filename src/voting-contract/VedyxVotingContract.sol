@@ -6,6 +6,7 @@ import {AccessControl} from "@openzeppelin-contracts/contracts/access/AccessCont
 import {IERC20} from "@openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+import {AbstractCallback} from "reactive-lib/abstract-base/AbstractCallback.sol";
 
 import {VedyxTypes} from "./libraries/VedyxTypes.sol";
 import {VedyxErrors} from "./libraries/VedyxErrors.sol";
@@ -28,7 +29,7 @@ import {IVedyxVoting} from "./interfaces/IVedyxVoting.sol";
  * • Role-based access control (RBAC)
  * ──────────────────────────────────────────────────────────────────────────────
  */
-contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxVoting {
+contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxVoting, AbstractCallback {
     using FixedPointMathLib for uint256;
     using VotingPowerLib for uint256;
     using VotingPowerLib for VedyxTypes.Staker;
@@ -78,7 +79,7 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
 
     // ─── Modifiers ────────────────────────────────────────────────────────
     modifier onlyCallbackAuthorizer() {
-        if (msg.sender != callbackAuthorizer) revert VedyxErrors.UnauthorizedCallback();
+        if (!senders[msg.sender] && !hasRole(GOVERNANCE_ROLE, msg.sender)) revert VedyxErrors.UnauthorizedCallback();
         _;
     }
 
@@ -91,7 +92,7 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
         uint256 _penaltyPercentage,
         address _treasury,
         uint256 _finalizationFeePercentage
-    ) Ownable() {
+    ) Ownable() AbstractCallback(_callbackAuthorizer) {
         if (_stakingToken == address(0) || _callbackAuthorizer == address(0)) {
             revert VedyxErrors.InvalidAddress();
         }
