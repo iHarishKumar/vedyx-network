@@ -1,0 +1,36 @@
+<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="radar-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="50%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Shield outline with gradient -->
+  <path d="M50 10L20 25V48C20 68 30 83 50 92C70 83 80 68 80 48V25L50 10Z" stroke="url(#radar-gradient)" stroke-width="3" fill="url(#radar-gradient)" fill-opacity="0.1"/>
+  
+  <!-- Large V integrated into shield -->
+  <path d="M35 35L50 65L65 35" stroke="#8b5cf6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.4"/>
+  
+  <!-- Radar scanning line -->
+  <line x1="50" y1="50" x2="75" y2="35" stroke="url(#radar-gradient)" stroke-width="2.5"/>
+  
+  <!-- Center point -->
+  <circle cx="50" cy="50" r="4" fill="#8b5cf6"/>
+  
+  <!-- Radar circles with gradient -->
+  <circle cx="50" cy="50" r="12" stroke="url(#radar-gradient)" stroke-width="1.5" fill="none" opacity="0.4"/>
+  <circle cx="50" cy="50" r="20" stroke="url(#radar-gradient)" stroke-width="1.5" fill="none" opacity="0.3"/>
+  <circle cx="50" cy="50" r="28" stroke="url(#radar-gradient)" stroke-width="1.5" fill="none" opacity="0.2"/>
+  
+  <!-- Detection blips -->
+  <circle cx="62" cy="38" r="3" fill="#8b5cf6"/>
+  <circle cx="40" cy="55" r="3" fill="#8b5cf6"/>
+  <circle cx="58" cy="62" r="3" fill="#8b5cf6"/>
+  
+  <!-- Corner accent nodes -->
+  <circle cx="35" cy="35" r="2" fill="#8b5cf6"/>
+  <circle cx="65" cy="35" r="2" fill="#8b5cf6"/>
+  <circle cx="50" cy="65" r="2" fill="#8b5cf6"/>
+</svg>
