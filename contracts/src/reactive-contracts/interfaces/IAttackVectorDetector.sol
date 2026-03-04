@@ -12,6 +12,7 @@ import {IReactive} from "reactive-lib/interfaces/IReactive.sol";
 interface IAttackVectorDetector {
     /**
      * @notice Analyzes a log record and returns detection results
+     * @dev Can be view (stateless) or non-view (stateful) depending on detector implementation
      * @param log The log record to analyze
      * @return detected Whether a threat was detected
      * @return suspiciousAddress The address flagged as suspicious (if detected)
@@ -19,7 +20,6 @@ interface IAttackVectorDetector {
      */
     function detect(IReactive.LogRecord calldata log)
         external
-        view
         returns (bool detected, address suspiciousAddress, bytes memory payload);
 
     /**

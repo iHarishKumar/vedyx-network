@@ -4,11 +4,12 @@ pragma solidity ^0.8.28;
 import {IReactive} from "reactive-lib/interfaces/IReactive.sol";
 import {IAttackVectorDetector} from "../interfaces/IAttackVectorDetector.sol";
 import {Ownable} from "@openzeppelin-contracts/contracts/access/Ownable.sol";
+import {TokenRegistry} from "./TokenRegistry.sol";
 
 error InvalidTokenAddress();
 error ThresholdMustBeGreaterThanZero();
 error TokenNotConfigured();
-error InvalidDecimals();
+error InvalidRegistryAddress();
 
 /**
  * @title LargeTransferDetector
@@ -25,23 +26,26 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
 
     // ─── State ────────────────────────────────────────────────────────
     bool public active;
+    
+    /// @notice Reference to shared TokenRegistry
+    TokenRegistry public immutable registry;
 
-    struct TokenConfig {
-        uint256 threshold;
-        uint8 decimals;
-        bool isConfigured;
-    }
-
-    mapping(address => TokenConfig) private tokenConfigs;
+    /// @notice Token-specific thresholds (detector-specific config)
+    mapping(address => uint256) private tokenThresholds;
+    mapping(address => bool) private tokenConfigured;
 
     // ─── Events ───────────────────────────────────────────────────────────
-    event TokenConfigured(address indexed tokenAddress, uint256 threshold, uint8 decimals);
-
+    event TokenThresholdConfigured(address indexed tokenAddress, uint256 threshold);
     event DetectorActivated();
     event DetectorDeactivated();
 
     // ─── Constructor ──────────────────────────────────────────────────
-    constructor() Ownable() {
+    /**
+     * @param _registry Address of the shared TokenRegistry
+     */
+    constructor(address _registry) Ownable() {
+        if (_registry == address(0)) revert InvalidRegistryAddress();
+        registry = TokenRegistry(_registry);
         active = true;
     }
 
@@ -80,21 +84,22 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
             value := mload(add(logData, 0x20))
         }
 
-        uint256 threshold = DEFAULT_THRESHOLD;
-        TokenConfig memory config = tokenConfigs[tokenContract];
-
-        if (config.isConfigured) {
-            threshold = config.threshold;
-        }
+        // Get threshold (detector-specific)
+        uint256 threshold = tokenConfigured[tokenContract] 
+            ? tokenThresholds[tokenContract] 
+            : DEFAULT_THRESHOLD;
 
         if (value >= threshold) {
+            // Get decimals from shared registry
+            uint8 decimals = registry.getDecimals(tokenContract);
+            
             payload = abi.encodeWithSignature(
                 "tagSuspicious(address,uint256,address,uint256,uint256,uint256,bytes32)",
                 from,
                 log.chain_id,
                 tokenContract,
                 value,
-                config.decimals,
+                decimals,
                 log.tx_hash,
                 DETECTOR_ID
             );
@@ -132,29 +137,30 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
     // ─── Configuration Management ─────────────────────────────────────────
     /**
      * @notice Configures the threshold for a specific token
+     * @dev Decimals are retrieved from shared TokenRegistry
      * @param tokenAddress The address of the token contract
      * @param threshold The threshold value in token's native decimals
-     * @param decimals The number of decimals the token uses
      */
-    function configureToken(address tokenAddress, uint256 threshold, uint8 decimals) external onlyOwner {
+    function configureTokenThreshold(address tokenAddress, uint256 threshold) external onlyOwner {
         if (tokenAddress == address(0)) revert InvalidTokenAddress();
         if (threshold == 0) revert ThresholdMustBeGreaterThanZero();
-        if (decimals == 0) revert InvalidDecimals();
 
-        tokenConfigs[tokenAddress] = TokenConfig({threshold: threshold, decimals: decimals, isConfigured: true});
+        tokenThresholds[tokenAddress] = threshold;
+        tokenConfigured[tokenAddress] = true;
 
-        emit TokenConfigured(tokenAddress, threshold, decimals);
+        emit TokenThresholdConfigured(tokenAddress, threshold);
     }
 
     /**
-     * @notice Removes the configuration for a specific token
+     * @notice Removes the threshold configuration for a specific token
      * @param tokenAddress The address of the token to unconfigure
      */
-    function removeTokenConfig(address tokenAddress) external onlyOwner {
-        if (!tokenConfigs[tokenAddress].isConfigured) {
+    function removeTokenThreshold(address tokenAddress) external onlyOwner {
+        if (!tokenConfigured[tokenAddress]) {
             revert TokenNotConfigured();
         }
-        delete tokenConfigs[tokenAddress];
+        delete tokenThresholds[tokenAddress];
+        delete tokenConfigured[tokenAddress];
     }
 
     /**
@@ -175,19 +181,17 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
 
     // ─── Getters ──────────────────────────────────────────────────────────
     /**
-     * @notice Returns the configuration for a specific token
+     * @notice Returns the threshold for a specific token
      * @param tokenAddress The address of the token to query
      * @return threshold The configured threshold value
-     * @return decimals The token's decimal places
-     * @return isConfigured Whether the token has been configured
+     * @return isConfigured Whether the token has a threshold configured
      */
-    function getTokenConfig(address tokenAddress)
+    function getTokenThreshold(address tokenAddress)
         external
         view
-        returns (uint256 threshold, uint8 decimals, bool isConfigured)
+        returns (uint256 threshold, bool isConfigured)
     {
-        TokenConfig memory config = tokenConfigs[tokenAddress];
-        return (config.threshold, config.decimals, config.isConfigured);
+        return (tokenThresholds[tokenAddress], tokenConfigured[tokenAddress]);
     }
 
     /**
@@ -196,8 +200,7 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
      * @return The threshold that will be used for this token
      */
     function getEffectiveThreshold(address tokenAddress) external view returns (uint256) {
-        TokenConfig memory config = tokenConfigs[tokenAddress];
-        return config.isConfigured ? config.threshold : DEFAULT_THRESHOLD;
+        return tokenConfigured[tokenAddress] ? tokenThresholds[tokenAddress] : DEFAULT_THRESHOLD;
     }
 
     /**

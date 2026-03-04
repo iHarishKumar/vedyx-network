@@ -4,10 +4,12 @@ pragma solidity ^0.8.28;
 import {IReactive} from "reactive-lib/interfaces/IReactive.sol";
 import {IAttackVectorDetector} from "../interfaces/IAttackVectorDetector.sol";
 import {Ownable} from "@openzeppelin-contracts/contracts/access/Ownable.sol";
+import {TokenRegistry} from "./TokenRegistry.sol";
 
 error InvalidMixerAddress();
 error MixerAlreadyRegistered();
 error MixerNotRegistered();
+error InvalidRegistryAddress();
 
 /**
  * @title MixerInteractionDetector
@@ -23,6 +25,9 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
 
     // ─── State ────────────────────────────────────────────────────────
     bool public active;
+    
+    /// @notice Reference to shared TokenRegistry
+    TokenRegistry public immutable registry;
 
     struct MixerInfo {
         bool isRegistered;
@@ -46,7 +51,12 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
     );
 
     // ─── Constructor ──────────────────────────────────────────────────
-    constructor() Ownable() {
+    /**
+     * @param _registry Address of the shared TokenRegistry
+     */
+    constructor(address _registry) Ownable() {
+        if (_registry == address(0)) revert InvalidRegistryAddress();
+        registry = TokenRegistry(_registry);
         active = true;
         _registerDefaultMixers();
     }
@@ -79,44 +89,41 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
 
         address from = address(uint160(log.topic_1));
         address to = address(uint160(log.topic_2));
-        address tokenContract = log._contract;
 
-        bytes memory logData = log.data;
+        // Extract value using assembly (gas efficient)
         uint256 value;
         assembly {
-            value := mload(add(logData, 0x20))
+            value := calldataload(add(log, 0xc0))
         }
 
-        bool fromIsMixer = knownMixers[from].isRegistered;
-        bool toIsMixer = knownMixers[to].isRegistered;
-
-        if (fromIsMixer) {
+        // Check mixer interaction
+        if (knownMixers[from].isRegistered) {
+            // Withdrawal from mixer - flag recipient
             payload = abi.encodeWithSignature(
                 "tagSuspicious(address,uint256,address,uint256,uint256,uint256,bytes32)",
                 to,
                 log.chain_id,
-                tokenContract,
+                log._contract,
                 value,
-                0,
+                registry.getDecimals(log._contract),
                 log.tx_hash,
                 DETECTOR_ID
             );
-
             return (true, to, payload);
         }
 
-        if (toIsMixer) {
+        if (knownMixers[to].isRegistered) {
+            // Deposit to mixer - flag sender
             payload = abi.encodeWithSignature(
                 "tagSuspicious(address,uint256,address,uint256,uint256,uint256,bytes32)",
                 from,
                 log.chain_id,
-                tokenContract,
+                log._contract,
                 value,
-                0,
+                registry.getDecimals(log._contract),
                 log.tx_hash,
                 DETECTOR_ID
             );
-
             return (true, from, payload);
         }
 
