@@ -52,7 +52,7 @@ export default function Home() {
                   <div className="text-sm text-muted-foreground">Chains Supported</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-primary">12+</div>
+                  <div className="text-3xl font-bold text-primary">3+</div>
                   <div className="text-sm text-muted-foreground">Security Detectors</div>
                 </div>
               </div>

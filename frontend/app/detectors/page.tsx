@@ -228,7 +228,7 @@ export default function Detectors() {
                     </Badge>
                   </div>
                   <p className="text-muted-foreground mb-6">
-                    We're actively developing more detectors to enhance your smart contract security. Stay tuned for these upcoming features!
+                    We&apos;re actively developing more detectors to enhance your smart contract security. Stay tuned for these upcoming features!
                   </p>
                   
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
