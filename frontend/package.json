@@ -29,8 +29,7 @@
     "@rainbow-me/rainbowkit": "^2.0.2",
     "recharts": "^2.12.0",
     "date-fns": "^3.3.1",
-    "pino-pretty": "^10.3.1",
-    "@react-native-async-storage/async-storage": "^1.23.1"
+    "pino-pretty": "^10.3.1"
   },
   "devDependencies": {
     "eslint": "^8.56.0",
