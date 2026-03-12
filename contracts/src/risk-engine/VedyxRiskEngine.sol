@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import {Ownable} from "@openzeppelin-contracts/contracts/access/Ownable.sol";
 import {AccessControl} from "@openzeppelin-contracts/contracts/access/AccessControl.sol";
 import {IVedyxRiskEngine} from "./interfaces/IVedyxRiskEngine.sol";
-import {IVedyxVoting} from "../voting-contract/interfaces/IVedyxVoting.sol";
+import {IVedyxVotingViews} from "../voting-contract/interfaces/IVedyxVotingViews.sol";
 import {VedyxTypes} from "../voting-contract/libraries/VedyxTypes.sol";
 import {RiskScoringLib} from "./libraries/RiskScoringLib.sol";
 
@@ -37,7 +37,7 @@ contract VedyxRiskEngine is IVedyxRiskEngine, Ownable, AccessControl {
     bytes32 public constant RISK_ADMIN_ROLE = keccak256("RISK_ADMIN_ROLE");
 
     // ─── State Variables ──────────────────────────────────────────────────
-    IVedyxVoting public votingContract;
+    IVedyxVotingViews public votingView;
     RiskConfig public riskConfig;
     mapping(bytes32 => uint8) public detectorSeverities;
     bytes32[] public registeredDetectors;
@@ -50,11 +50,11 @@ contract VedyxRiskEngine is IVedyxRiskEngine, Ownable, AccessControl {
 
     // ─── Constructor ──────────────────────────────────────────────────────
     /**
-     * @param _votingContract Address of VedyxVotingContract
+     * @param _votingView Address of VedyxVotingViews contract
      */
-    constructor(address _votingContract) Ownable() {
-        require(_votingContract != address(0), "Invalid voting contract");
-        votingContract = IVedyxVoting(_votingContract);
+    constructor(address _votingView) Ownable() {
+        require(_votingView != address(0), "Invalid voting view contract");
+        votingView = IVedyxVotingViews(_votingView);
 
         riskConfig = RiskScoringLib.getDefaultRiskConfig();
 
@@ -73,7 +73,7 @@ contract VedyxRiskEngine is IVedyxRiskEngine, Ownable, AccessControl {
      */
     function getRiskAssessment(address addr) external view override returns (RiskAssessment memory assessment) {
         (bool hasVerdict, bool isSuspicious, uint256 lastVotingId, uint256 verdictTimestamp, uint256 totalIncidents) =
-            votingContract.getAddressVerdict(addr);
+            votingView.getAddressVerdict(addr);
 
         if (!hasVerdict) {
             return RiskAssessment({
@@ -126,7 +126,7 @@ contract VedyxRiskEngine is IVedyxRiskEngine, Ownable, AccessControl {
      */
     function getRiskScore(address addr) external view override returns (uint8 score) {
         (bool hasVerdict, bool isSuspicious, uint256 lastVotingId, uint256 verdictTimestamp, uint256 totalIncidents) =
-            votingContract.getAddressVerdict(addr);
+            votingView.getAddressVerdict(addr);
 
         if (!hasVerdict) return 0;
 
@@ -156,7 +156,7 @@ contract VedyxRiskEngine is IVedyxRiskEngine, Ownable, AccessControl {
      */
     function getRiskFactors(address addr) external view override returns (RiskFactors memory factors) {
         (bool hasVerdict, bool isSuspicious, uint256 lastVotingId, uint256 verdictTimestamp, uint256 totalIncidents) =
-            votingContract.getAddressVerdict(addr);
+            votingView.getAddressVerdict(addr);
 
         if (!hasVerdict) {
             return RiskFactors({
@@ -250,7 +250,7 @@ contract VedyxRiskEngine is IVedyxRiskEngine, Ownable, AccessControl {
     function _getDetectorIdFromVoting(uint256 votingId) internal view returns (bytes32 detectorId) {
         if (votingId == 0) return bytes32(0);
 
-        try votingContract.getVotingDetails(votingId) returns (
+        try votingView.getVotingDetails(votingId) returns (
             VedyxTypes.SuspiciousReport memory report,
             uint256,
             uint256,
@@ -275,7 +275,7 @@ contract VedyxRiskEngine is IVedyxRiskEngine, Ownable, AccessControl {
     function _getVotingResults(uint256 votingId) internal view returns (uint256 votesFor, uint256 votesAgainst) {
         if (votingId == 0) return (0, 0);
 
-        try votingContract.getVotingDetails(votingId) returns (
+        try votingView.getVotingDetails(votingId) returns (
             VedyxTypes.SuspiciousReport memory,
             uint256,
             uint256,
@@ -369,13 +369,13 @@ contract VedyxRiskEngine is IVedyxRiskEngine, Ownable, AccessControl {
     }
 
     /**
-     * @notice Update voting contract address
-     * @param newVotingContract New voting contract address
+     * @notice Update voting view contract address
+     * @param newVotingView New voting view contract address
      */
-    function updateVotingContract(address newVotingContract) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(newVotingContract != address(0), "Invalid address");
-        votingContract = IVedyxVoting(newVotingContract);
-        emit VotingContractUpdated(newVotingContract);
+    function updateVotingView(address newVotingView) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(newVotingView != address(0), "Invalid address");
+        votingView = IVedyxVotingViews(newVotingView);
+        emit VotingContractUpdated(newVotingView);
     }
 
     /**

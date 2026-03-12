@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Ownable} from "@openzeppelin-contracts/contracts/access/Ownable.sol";
 import {AccessControl} from "@openzeppelin-contracts/contracts/access/AccessControl.sol";
 import {IERC20} from "@openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
@@ -29,7 +28,7 @@ import {IVedyxVoting} from "./interfaces/IVedyxVoting.sol";
  * • Role-based access control (RBAC)
  * ──────────────────────────────────────────────────────────────────────────────
  */
-contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxVoting, AbstractCallback {
+contract VedyxVotingContract is ReentrancyGuard, AccessControl, IVedyxVoting, AbstractCallback {
     using FixedPointMathLib for uint256;
     using VotingPowerLib for uint256;
     using VotingPowerLib for VedyxTypes.Staker;
@@ -96,7 +95,7 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
         uint256 _penaltyPercentage,
         address _treasury,
         uint256 _finalizationFeePercentage
-    ) Ownable() AbstractCallback(_callbackAuthorizer) {
+    ) AbstractCallback(_callbackAuthorizer) {
         if (_stakingToken == address(0) || _callbackAuthorizer == address(0)) {
             revert VedyxErrors.InvalidAddress();
         }
@@ -471,95 +470,30 @@ contract VedyxVotingContract is Ownable, ReentrancyGuard, AccessControl, IVedyxV
         emit FeeCollected(treasury, amount);
     }
 
-    // ─── View Functions ───────────────────────────────────────────────────
+    // ─── Internal View Helpers for External View Contract ─────────────────
 
-    function getVotingDetails(uint256 votingId)
+    function activeVotingCount() external view returns (uint256) {
+        return activeVotingIds.length;
+    }
+
+    function addressVotingHistoryLength(address suspiciousAddress) external view returns (uint256) {
+        return addressVotingHistory[suspiciousAddress].length;
+    }
+
+    function votingVotersLength(uint256 votingId) external view returns (uint256) {
+        return votings[votingId].voters.length;
+    }
+
+    function votingVoterAt(uint256 votingId, uint256 index) external view returns (address) {
+        return votings[votingId].voters[index];
+    }
+
+    function voteInfo(uint256 votingId, address voter)
         external
         view
-        returns (
-            VedyxTypes.SuspiciousReport memory report,
-            uint256 startTime,
-            uint256 endTime,
-            uint256 votesFor,
-            uint256 votesAgainst,
-            bool finalized,
-            bool isSuspicious,
-            bool isInconclusive
-        )
+        returns (bool hasVoted, bool votedFor, uint256 votingPower, uint256 stakedSnapshot)
     {
-        VedyxTypes.Voting storage voting = votings[votingId];
-        return (
-            voting.report,
-            voting.startTime,
-            voting.endTime,
-            voting.votesFor,
-            voting.votesAgainst,
-            voting.finalized,
-            voting.isSuspicious,
-            voting.isInconclusive
-        );
-    }
-
-    function getVote(uint256 votingId, address voter)
-        external
-        view
-        returns (bool hasVoted, bool votedFor, uint256 votingPower)
-    {
-        VedyxTypes.Vote memory vote = votings[votingId].votes[voter];
-        return (vote.hasVoted, vote.votedFor, vote.votingPower);
-    }
-
-    function getStakerInfo(address stakerAddress) external view returns (VedyxTypes.Staker memory staker) {
-        staker = stakers[stakerAddress];
-    }
-
-    function getActiveVotings() external view returns (uint256[] memory) {
-        return activeVotingIds;
-    }
-
-    function getAddressVotingHistory(address suspiciousAddress) external view returns (uint256[] memory) {
-        return addressVotingHistory[suspiciousAddress];
-    }
-
-    function getVotingPower(address voter) external view returns (int256) {
-        VedyxTypes.Staker memory staker = stakers[voter];
-        uint256 availableStake = VotingPowerLib.getAvailableStake(staker);
-        return VotingPowerLib.calculateVotingPower(availableStake, staker.karmaPoints);
-    }
-
-    function getVoterAccuracy(address voter) external view returns (uint256) {
-        VedyxTypes.Staker memory staker = stakers[voter];
-        if (staker.totalVotes == 0) return 0;
-        return staker.correctVotes.mulDivDown(BASIS_POINTS_DIVISOR, staker.totalVotes);
-    }
-
-    function getVoters(uint256 votingId) external view returns (address[] memory) {
-        return votings[votingId].voters;
-    }
-
-    function getAddressVerdict(address addr)
-        external
-        view
-        returns (
-            bool hasVerdict,
-            bool isSuspicious,
-            uint256 lastVotingId,
-            uint256 verdictTimestamp,
-            uint256 totalIncidents
-        )
-    {
-        VedyxTypes.AddressVerdict memory verdict = addressVerdicts[addr];
-        return (
-            verdict.hasVerdict,
-            verdict.isSuspicious,
-            verdict.lastVotingId,
-            verdict.verdictTimestamp,
-            verdict.totalIncidents
-        );
-    }
-
-    function willAutoMark(address addr) external view returns (bool) {
-        VedyxTypes.AddressVerdict memory verdict = addressVerdicts[addr];
-        return verdict.hasVerdict && verdict.isSuspicious;
+        VedyxTypes.Vote storage vote = votings[votingId].votes[voter];
+        return (vote.hasVoted, vote.votedFor, vote.votingPower, vote.stakedSnapshot);
     }
 }

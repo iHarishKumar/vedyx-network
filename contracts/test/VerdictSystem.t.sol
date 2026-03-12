@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {VedyxVotingContract} from "../src/voting-contract/VedyxVotingContract.sol";
+import {VedyxVotingViews} from "../src/voting-contract/VedyxVotingViews.sol";
 import {VedyxTypes} from "../src/voting-contract/libraries/VedyxTypes.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 
@@ -23,6 +24,7 @@ error NoVerdictToClear();
  */
 contract VerdictSystemTest is Test {
     VedyxVotingContract public votingContract;
+    VedyxVotingViews public votingViews;
     MockERC20 public stakingToken;
 
     address public owner;
@@ -80,6 +82,8 @@ contract VerdictSystemTest is Test {
             FINALIZATION_FEE_PERCENTAGE
         );
 
+        votingViews = new VedyxVotingViews(address(votingContract));
+
         // Setup stakers
         stakingToken.mint(user1, INITIAL_BALANCE);
         stakingToken.mint(user2, INITIAL_BALANCE);
@@ -115,7 +119,7 @@ contract VerdictSystemTest is Test {
 
         assertEq(votingId, 1);
 
-        (bool hasVerdict,,,, uint256 totalIncidents) = votingContract.getAddressVerdict(suspiciousAddr1);
+        (bool hasVerdict,,,, uint256 totalIncidents) = votingViews.getAddressVerdict(suspiciousAddr1);
         assertFalse(hasVerdict); // No verdict yet
         assertEq(totalIncidents, 1); // First incident
     }
@@ -141,7 +145,7 @@ contract VerdictSystemTest is Test {
         votingContract.finalizeVoting(votingId);
 
         (bool hasVerdict, bool isSuspicious, uint256 lastVotingId,, uint256 totalIncidents) =
-            votingContract.getAddressVerdict(suspiciousAddr1);
+            votingViews.getAddressVerdict(suspiciousAddr1);
 
         assertTrue(hasVerdict);
         assertTrue(isSuspicious);
@@ -170,7 +174,7 @@ contract VerdictSystemTest is Test {
         votingContract.finalizeVoting(votingId);
 
         (bool hasVerdict, bool isSuspicious, uint256 lastVotingId,, uint256 totalIncidents) =
-            votingContract.getAddressVerdict(suspiciousAddr1);
+            votingViews.getAddressVerdict(suspiciousAddr1);
 
         assertTrue(hasVerdict);
         assertFalse(isSuspicious); // Clean
@@ -209,7 +213,7 @@ contract VerdictSystemTest is Test {
         assertEq(votingId2, 0); // No voting created
 
         (bool hasVerdict, bool isSuspicious, uint256 lastVotingId,, uint256 totalIncidents) =
-            votingContract.getAddressVerdict(suspiciousAddr1);
+            votingViews.getAddressVerdict(suspiciousAddr1);
 
         assertTrue(hasVerdict);
         assertTrue(isSuspicious);
@@ -242,7 +246,7 @@ contract VerdictSystemTest is Test {
 
             assertEq(votingId, 0); // All auto-marked
 
-            (,,,, uint256 totalIncidents) = votingContract.getAddressVerdict(suspiciousAddr1);
+            (,,,, uint256 totalIncidents) = votingViews.getAddressVerdict(suspiciousAddr1);
             assertEq(totalIncidents, i);
         }
     }
@@ -268,7 +272,7 @@ contract VerdictSystemTest is Test {
         votingContract.tagSuspicious(suspiciousAddr1, 1, address(0x456), 2000 ether, 18, 67890, bytes32(0));
 
         // Check history
-        uint256[] memory history = votingContract.getAddressVotingHistory(suspiciousAddr1);
+        uint256[] memory history = votingViews.getAddressVotingHistory(suspiciousAddr1);
         assertEq(history.length, 2);
         assertEq(history[0], votingId1); // First voting
         assertEq(history[1], 0); // Auto-marked (0 indicates no voting)
@@ -304,7 +308,7 @@ contract VerdictSystemTest is Test {
 
         assertEq(votingId2, 2); // New voting created
 
-        (,,,, uint256 totalIncidents) = votingContract.getAddressVerdict(suspiciousAddr1);
+        (,,,, uint256 totalIncidents) = votingViews.getAddressVerdict(suspiciousAddr1);
         assertEq(totalIncidents, 2);
     }
 
@@ -340,7 +344,7 @@ contract VerdictSystemTest is Test {
         votingContract.finalizeVoting(votingId2);
 
         (bool hasVerdict, bool isSuspicious, uint256 lastVotingId,, uint256 totalIncidents) =
-            votingContract.getAddressVerdict(suspiciousAddr1);
+            votingViews.getAddressVerdict(suspiciousAddr1);
 
         assertTrue(hasVerdict);
         assertTrue(isSuspicious); // Now suspicious
@@ -382,7 +386,7 @@ contract VerdictSystemTest is Test {
         votingContract.clearAddressVerdict(suspiciousAddr1);
 
         (bool hasVerdict, bool isSuspicious,,, uint256 totalIncidents) =
-            votingContract.getAddressVerdict(suspiciousAddr1);
+            votingViews.getAddressVerdict(suspiciousAddr1);
 
         assertFalse(hasVerdict); // Cleared
         assertFalse(isSuspicious);
@@ -493,7 +497,7 @@ contract VerdictSystemTest is Test {
         votingContract.castVote(votingId, true);
 
         // Verify votes were recorded
-        (,,, uint256 votesFor, uint256 votesAgainst,,,) = votingContract.getVotingDetails(votingId);
+        (,,, uint256 votesFor, uint256 votesAgainst,,,) = votingViews.getVotingDetails(votingId);
         assertGt(votesFor, 0);
         assertGt(votesAgainst, 0);
     }
@@ -518,7 +522,7 @@ contract VerdictSystemTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
 
-        assertTrue(votingContract.willAutoMark(suspiciousAddr1));
+        assertTrue(votingViews.willAutoMark(suspiciousAddr1));
     }
 
     function test_WillAutoMark_ReturnsFalseForClean() public {
@@ -535,11 +539,11 @@ contract VerdictSystemTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
 
-        assertFalse(votingContract.willAutoMark(suspiciousAddr1));
+        assertFalse(votingViews.willAutoMark(suspiciousAddr1));
     }
 
     function test_WillAutoMark_ReturnsFalseForNoVerdict() public {
-        assertFalse(votingContract.willAutoMark(suspiciousAddr1));
+        assertFalse(votingViews.willAutoMark(suspiciousAddr1));
     }
 
     function test_GetAddressVerdict_ReturnsCorrectData() public {
@@ -560,7 +564,7 @@ contract VerdictSystemTest is Test {
         votingContract.finalizeVoting(votingId);
 
         (bool hasVerdict, bool isSuspicious, uint256 lastVotingId, uint256 verdictTimestamp, uint256 totalIncidents) =
-            votingContract.getAddressVerdict(suspiciousAddr1);
+            votingViews.getAddressVerdict(suspiciousAddr1);
 
         assertTrue(hasVerdict);
         assertTrue(isSuspicious);
@@ -605,8 +609,8 @@ contract VerdictSystemTest is Test {
         votingContract.finalizeVoting(votingId2);
 
         // Verify independent verdicts
-        (, bool isSuspicious1,,,) = votingContract.getAddressVerdict(suspiciousAddr1);
-        (, bool isSuspicious2,,,) = votingContract.getAddressVerdict(suspiciousAddr2);
+        (, bool isSuspicious1,,,) = votingViews.getAddressVerdict(suspiciousAddr1);
+        (, bool isSuspicious2,,,) = votingViews.getAddressVerdict(suspiciousAddr2);
 
         assertTrue(isSuspicious1);
         assertFalse(isSuspicious2);

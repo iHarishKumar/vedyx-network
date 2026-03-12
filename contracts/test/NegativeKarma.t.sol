@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {VedyxVotingContract} from "../src/voting-contract/VedyxVotingContract.sol";
+import {VedyxVotingViews} from "../src/voting-contract/VedyxVotingViews.sol";
 import {VedyxTypes} from "../src/voting-contract/libraries/VedyxTypes.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 
@@ -19,6 +20,7 @@ error InsufficientKarma();
 
 contract NegativeKarmaTest is Test {
     VedyxVotingContract public votingContract;
+    VedyxVotingViews public votingViews;
     MockERC20 public stakingToken;
 
     address public owner;
@@ -56,6 +58,8 @@ contract NegativeKarmaTest is Test {
             UNSTAKING_FEE_PERCENTAGE
         );
 
+        votingViews = new VedyxVotingViews(address(votingContract));
+
         stakingToken.mint(user1, INITIAL_BALANCE);
         stakingToken.mint(user2, INITIAL_BALANCE);
         stakingToken.mint(user3, INITIAL_BALANCE);
@@ -92,7 +96,7 @@ contract NegativeKarmaTest is Test {
         votingContract.finalizeVoting(votingId1);
 
         // user1 should have negative karma now
-        VedyxTypes.Staker memory staker = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory staker = votingViews.getStakerInfo(user1);
         assertEq(staker.karmaPoints, -5); // Lost 5 karma
 
         console2.log("Staker information: ----");
@@ -105,7 +109,7 @@ contract NegativeKarmaTest is Test {
         // Voting power should be reduced with exponential penalty
         // Formula: penalty = stake * (karma^2) / 100000
         // With -5 karma: penalty = 450 * (5^2) / 100000 = 450 * 25 / 100000 = 0.1125 ether
-        int256 votingPower = votingContract.getVotingPower(user1);
+        int256 votingPower = votingViews.getVotingPower(user1);
 
         uint256 expectedPenalty = (staker.stakedAmount * 25) / 100000; // 5^2 = 25
         int256 expectedPower = int256(staker.stakedAmount) - int256(expectedPenalty);
@@ -153,13 +157,13 @@ contract NegativeKarmaTest is Test {
 
         // user1 should have very negative karma
         // Get actual stake after penalties (500 - 10% * 5 = 500 - 250 = 250 ether)
-        VedyxTypes.Staker memory staker = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory staker = votingViews.getStakerInfo(user1);
         assertEq(staker.karmaPoints, -25); // Lost 5 karma per vote * 5 votes
 
         // Voting power should be reduced significantly with exponential penalty
         // Formula: penalty = stake * (karma^2) / 100000
         // With -25 karma: penalty = stake * (25^2) / 100000 = stake * 625 / 100000
-        int256 votingPower = votingContract.getVotingPower(user1);
+        int256 votingPower = votingViews.getVotingPower(user1);
 
         uint256 expectedPenalty = (staker.stakedAmount * 625) / 100000; // 25^2 = 625
         int256 expectedPower = int256(staker.stakedAmount) - int256(expectedPenalty);
@@ -202,7 +206,7 @@ contract NegativeKarmaTest is Test {
             vm.warp(block.timestamp + 1);
         }
 
-        VedyxTypes.Staker memory staker = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory staker = votingViews.getStakerInfo(user1);
         assertEq(staker.karmaPoints, -10);
 
         // Vote correctly once
@@ -221,7 +225,7 @@ contract NegativeKarmaTest is Test {
         votingContract.finalizeVoting(votingId);
 
         // Karma should improve
-        VedyxTypes.Staker memory stakeAfter = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeAfter = votingViews.getStakerInfo(user1);
         assertEq(stakeAfter.karmaPoints, 0); // -10 + 10 = 0
     }
 
@@ -259,7 +263,7 @@ contract NegativeKarmaTest is Test {
         }
 
         // user1 should have karma below threshold
-        VedyxTypes.Staker memory staker = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory staker = votingViews.getStakerInfo(user1);
         assertEq(staker.karmaPoints, -55); // 11 * -5
         assertLt(staker.karmaPoints, -50); // Below MINIMUM_KARMA_TO_VOTE
 

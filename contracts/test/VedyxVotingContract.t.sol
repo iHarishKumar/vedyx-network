@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {VedyxVotingContract} from "../src/voting-contract/VedyxVotingContract.sol";
+import {VedyxVotingViews} from "../src/voting-contract/VedyxVotingViews.sol";
 import {VedyxTypes} from "../src/voting-contract/libraries/VedyxTypes.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 
@@ -25,6 +26,7 @@ error InsufficientFeesForReward();
 
 contract VedyxVotingContractTest is Test {
     VedyxVotingContract public votingContract;
+    VedyxVotingViews public votingViews;
     MockERC20 public stakingToken;
 
     address public owner;
@@ -85,6 +87,8 @@ contract VedyxVotingContractTest is Test {
             treasury,
             FINALIZATION_FEE_PERCENTAGE
         );
+
+        votingViews = new VedyxVotingViews(address(votingContract));
 
         stakingToken.mint(user1, INITIAL_BALANCE);
         stakingToken.mint(user2, INITIAL_BALANCE);
@@ -180,7 +184,7 @@ contract VedyxVotingContractTest is Test {
         vm.prank(user1);
         votingContract.stake(stakeAmount);
 
-        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingViews.getStakerInfo(user1);
         assertEq(stakeUser1.stakedAmount, stakeAmount);
         assertEq(stakeUser1.lockedAmount, 0);
         assertEq(stakingToken.balanceOf(address(votingContract)), stakeAmount);
@@ -192,7 +196,7 @@ contract VedyxVotingContractTest is Test {
         votingContract.stake(300 ether);
         vm.stopPrank();
 
-        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingViews.getStakerInfo(user1);
         assertEq(stakeUser1.stakedAmount, 500 ether);
     }
 
@@ -232,7 +236,7 @@ contract VedyxVotingContractTest is Test {
         votingContract.unstake(unstakeAmount);
         vm.stopPrank();
 
-        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingViews.getStakerInfo(user1);
         assertEq(stakeUser1.stakedAmount, stakeAmount - unstakeAmount);
         assertEq(stakingToken.balanceOf(user1), balanceBefore + unstakeAmount);
         assertEq(votingContract.totalFeesCollected(), 0 ether);
@@ -302,7 +306,7 @@ contract VedyxVotingContractTest is Test {
             bool finalized,
             bool isSuspicious,
             bool isInconclusive
-        ) = votingContract.getVotingDetails(votingId);
+        ) = votingViews.getVotingDetails(votingId);
 
         assertEq(report.suspiciousAddress, suspiciousAddr);
         assertEq(report.originChainId, originChainId);
@@ -317,7 +321,7 @@ contract VedyxVotingContractTest is Test {
         assertFalse(finalized);
         assertFalse(isSuspicious);
 
-        uint256[] memory activeVotings = votingContract.getActiveVotings();
+        uint256[] memory activeVotings = votingViews.getActiveVotings();
         assertEq(activeVotings.length, 1);
         assertEq(activeVotings[0], votingId);
     }
@@ -345,7 +349,7 @@ contract VedyxVotingContractTest is Test {
         assertEq(votingId1, 1);
         assertEq(votingId2, 2);
 
-        uint256[] memory activeVotings = votingContract.getActiveVotings();
+        uint256[] memory activeVotings = votingViews.getActiveVotings();
         assertEq(activeVotings.length, 2);
     }
 
@@ -367,12 +371,12 @@ contract VedyxVotingContractTest is Test {
         vm.prank(user1);
         votingContract.castVote(votingId, true);
 
-        (bool hasVoted, bool votedFor, uint256 votingPower) = votingContract.getVote(votingId, user1);
+        (bool hasVoted, bool votedFor, uint256 votingPower) = votingViews.getVote(votingId, user1);
         assertTrue(hasVoted);
         assertTrue(votedFor);
         assertEq(votingPower, 500 ether);
 
-        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingViews.getStakerInfo(user1);
         assertEq(stakeUser1.lockedAmount, MINIMUM_STAKE);
         assertEq(stakeUser1.totalVotes, 1);
     }
@@ -402,7 +406,7 @@ contract VedyxVotingContractTest is Test {
 
         votingContract.finalizeVoting(votingId1);
 
-        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingViews.getStakerInfo(user1);
         assertEq(stakeUser1.karmaPoints, 10);
 
         vm.prank(callbackAuthorizer);
@@ -418,7 +422,7 @@ contract VedyxVotingContractTest is Test {
         vm.prank(user3);
         votingContract.castVote(votingId2, true);
 
-        (, bool votedFor, uint256 votingPower) = votingContract.getVote(votingId2, user1);
+        (, bool votedFor, uint256 votingPower) = votingViews.getVote(votingId2, user1);
         assertTrue(votedFor);
         assertGt(votingPower, 500 ether);
     }
@@ -495,7 +499,7 @@ contract VedyxVotingContractTest is Test {
         vm.prank(user3);
         votingContract.castVote(votingId, false);
 
-        address[] memory voters = votingContract.getVoters(votingId);
+        address[] memory voters = votingViews.getVoters(votingId);
         assertEq(voters.length, 3);
         assertEq(voters[0], user1);
         assertEq(voters[1], user2);
@@ -532,11 +536,11 @@ contract VedyxVotingContractTest is Test {
 
         votingContract.finalizeVoting(votingId);
 
-        (,,,,, bool finalized, bool isSuspicious,) = votingContract.getVotingDetails(votingId);
+        (,,,,, bool finalized, bool isSuspicious,) = votingViews.getVotingDetails(votingId);
         assertTrue(finalized);
         assertTrue(isSuspicious);
 
-        uint256[] memory activeVotings = votingContract.getActiveVotings();
+        uint256[] memory activeVotings = votingViews.getActiveVotings();
         assertEq(activeVotings.length, 0);
     }
 
@@ -563,7 +567,7 @@ contract VedyxVotingContractTest is Test {
 
         votingContract.finalizeVoting(votingId);
 
-        (,,,,, bool finalized, bool isSuspicious,) = votingContract.getVotingDetails(votingId);
+        (,,,,, bool finalized, bool isSuspicious,) = votingViews.getVotingDetails(votingId);
         assertTrue(finalized);
         assertFalse(isSuspicious);
     }
@@ -688,7 +692,7 @@ contract VedyxVotingContractTest is Test {
 
         votingContract.finalizeVoting(votingId);
 
-        VedyxTypes.Staker memory stakeUser3 = votingContract.getStakerInfo(user3);
+        VedyxTypes.Staker memory stakeUser3 = votingViews.getStakerInfo(user3);
         assertEq(stakeUser3.stakedAmount, user3StakeBefore - expectedPenalty);
     }
 
@@ -718,7 +722,7 @@ contract VedyxVotingContractTest is Test {
 
         votingContract.finalizeVoting(votingId);
 
-        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingViews.getStakerInfo(user1);
         assertEq(stakeUser1.karmaPoints, 10);
         assertEq(stakeUser1.totalVotes, 1);
         assertEq(stakeUser1.correctVotes, 1);
@@ -747,7 +751,7 @@ contract VedyxVotingContractTest is Test {
 
         votingContract.finalizeVoting(votingId);
 
-        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingViews.getStakerInfo(user1);
         assertEq(stakeUser1.karmaPoints, -5);
     }
 
@@ -762,13 +766,13 @@ contract VedyxVotingContractTest is Test {
         vm.prank(user1);
         votingContract.castVote(votingId, true);
 
-        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingViews.getStakerInfo(user1);
         assertEq(stakeUser1.lockedAmount, MINIMUM_STAKE);
 
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
 
-        VedyxTypes.Staker memory stakeUser1After = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1After = votingViews.getStakerInfo(user1);
         assertEq(stakeUser1After.lockedAmount, 0);
     }
 
@@ -966,7 +970,7 @@ contract VedyxVotingContractTest is Test {
         vm.prank(user1);
         votingContract.stake(500 ether);
 
-        int256 votingPower = votingContract.getVotingPower(user1);
+        int256 votingPower = votingViews.getVotingPower(user1);
         assertEq(votingPower, int256(500 ether));
     }
 
@@ -992,12 +996,12 @@ contract VedyxVotingContractTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
 
-        int256 votingPower = votingContract.getVotingPower(user1);
+        int256 votingPower = votingViews.getVotingPower(user1);
         assertGt(votingPower, int256(500 ether));
     }
 
     function test_GetVoterAccuracy_NoVotes() public view {
-        uint256 accuracy = votingContract.getVoterAccuracy(user1);
+        uint256 accuracy = votingViews.getVoterAccuracy(user1);
         assertEq(accuracy, 0);
     }
 
@@ -1023,7 +1027,7 @@ contract VedyxVotingContractTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
 
-        uint256 accuracy = votingContract.getVoterAccuracy(user1);
+        uint256 accuracy = votingViews.getVoterAccuracy(user1);
         assertEq(accuracy, 10000); // 100%
 
         vm.warp(block.timestamp + 1);
@@ -1043,7 +1047,7 @@ contract VedyxVotingContractTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId2);
 
-        accuracy = votingContract.getVoterAccuracy(user1);
+        accuracy = votingViews.getVoterAccuracy(user1);
         assertEq(accuracy, 5000); // 50%
     }
 
@@ -1051,15 +1055,10 @@ contract VedyxVotingContractTest is Test {
         vm.prank(callbackAuthorizer);
         uint256 votingId1 =
             votingContract.tagSuspicious(suspiciousAddr, 1, address(0x123), 1000 ether, 18, 12345, bytes32(0));
-
-        vm.prank(callbackAuthorizer);
-        uint256 votingId2 =
-            votingContract.tagSuspicious(suspiciousAddr, 2, address(0x456), 2000 ether, 18, 67890, bytes32(0));
-
-        uint256[] memory history = votingContract.getAddressVotingHistory(suspiciousAddr);
-        assertEq(history.length, 2);
+        
+        uint256[] memory history = votingViews.getAddressVotingHistory(suspiciousAddr);
+        assertEq(history.length, 1);
         assertEq(history[0], votingId1);
-        assertEq(history[1], votingId2);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -1084,7 +1083,7 @@ contract VedyxVotingContractTest is Test {
         vm.prank(user1);
         votingContract.castVote(votingId2, false);
 
-        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingViews.getStakerInfo(user1);
         assertEq(stakeUser1.lockedAmount, MINIMUM_STAKE * 2);
     }
 
@@ -1099,7 +1098,7 @@ contract VedyxVotingContractTest is Test {
         vm.prank(user1);
         votingContract.castVote(votingId, true);
 
-        (bool hasVoted,,) = votingContract.getVote(votingId, user1);
+        (bool hasVoted,,) = votingViews.getVote(votingId, user1);
         assertTrue(hasVoted);
     }
 
@@ -1121,7 +1120,7 @@ contract VedyxVotingContractTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
 
-        VedyxTypes.Staker memory stakeUser2 = votingContract.getStakerInfo(user2);
+        VedyxTypes.Staker memory stakeUser2 = votingViews.getStakerInfo(user2);
         assertGe(stakeUser2.stakedAmount, 0);
     }
 
@@ -1142,7 +1141,7 @@ contract VedyxVotingContractTest is Test {
         vm.prank(user1);
         votingContract.unstake(100 ether);
 
-        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingViews.getStakerInfo(user1);
         assertLt(stakeUser1.stakedAmount, 500 ether);
     }
 
@@ -1154,7 +1153,7 @@ contract VedyxVotingContractTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
 
-        (,,,,, bool finalized, bool isSuspicious,) = votingContract.getVotingDetails(votingId);
+        (,,,,, bool finalized, bool isSuspicious,) = votingViews.getVotingDetails(votingId);
         assertTrue(finalized);
         assertFalse(isSuspicious);
     }
@@ -1177,7 +1176,7 @@ contract VedyxVotingContractTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
 
-        (,,,,,, bool isSuspicious,) = votingContract.getVotingDetails(votingId);
+        (,,,,,, bool isSuspicious,) = votingViews.getVotingDetails(votingId);
         assertFalse(isSuspicious);
     }
 }

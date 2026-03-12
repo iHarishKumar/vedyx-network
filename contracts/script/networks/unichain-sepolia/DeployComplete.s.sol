@@ -98,17 +98,23 @@ contract DeployComplete is Script {
     function saveAllDeployments() internal {
         console2.log("STEP 3: Saving Deployment Addresses...");
         
-        // Get references from voting deployer
+        // Build JSON in parts to avoid stack too deep
+        string memory part1 = _buildJsonPart1();
+        string memory part2 = _buildJsonPart2();
+        string memory part3 = _buildJsonPart3();
+        
+        string memory deploymentInfo = string(abi.encodePacked(part1, part2, part3));
+
+        vm.writeFile("./deployments/unichain-sepolia/deployment.json", deploymentInfo);
+        console2.log("Saved to: ./deployments/unichain-sepolia/deployment.json");
+        console2.log("");
+    }
+    
+    function _buildJsonPart1() internal view returns (string memory) {
         address stakingToken = address(votingDeployer.stakingToken());
-        address mockUSDC = address(votingDeployer.mockUSDC());
-        address mockUSDT = address(votingDeployer.mockUSDT());
-        address mockWETH = address(votingDeployer.mockWETH());
-        address mockDAI = address(votingDeployer.mockDAI());
-        address mixer1 = address(votingDeployer.mixer1());
-        address mixer2 = address(votingDeployer.mixer2());
         address callbackProxy = votingDeployer.REACTIVE_CALLBACK_PROXY();
         
-        string memory deploymentInfo = string(
+        return string(
             abi.encodePacked(
                 '{\n',
                 '  "network": "unichain-sepolia",\n',
@@ -118,7 +124,21 @@ contract DeployComplete is Script {
                 '    "stakingToken": "', vm.toString(stakingToken), '",\n',
                 '    "votingContract": "', vm.toString(address(votingContract)), '",\n',
                 '    "riskEngine": "', vm.toString(address(riskEngine)), '"\n',
-                '  },\n',
+                '  },\n'
+            )
+        );
+    }
+    
+    function _buildJsonPart2() internal view returns (string memory) {
+        address mockUSDC = address(votingDeployer.mockUSDC());
+        address mockUSDT = address(votingDeployer.mockUSDT());
+        address mockWETH = address(votingDeployer.mockWETH());
+        address mockDAI = address(votingDeployer.mockDAI());
+        address mixer1 = address(votingDeployer.mixer1());
+        address mixer2 = address(votingDeployer.mixer2());
+        
+        return string(
+            abi.encodePacked(
                 '  "mockTokens": {\n',
                 '    "USDC": "', vm.toString(mockUSDC), '",\n',
                 '    "USDT": "', vm.toString(mockUSDT), '",\n',
@@ -128,26 +148,26 @@ contract DeployComplete is Script {
                 '  "mockMixers": {\n',
                 '    "mixer1": "', vm.toString(mixer1), '",\n',
                 '    "mixer2": "', vm.toString(mixer2), '"\n',
-                '  },\n',
+                '  },\n'
+            )
+        );
+    }
+    
+    function _buildJsonPart3() internal view returns (string memory) {
+        return string(
+            abi.encodePacked(
                 '  "configuration": {\n',
                 '    "minimumStake": "', vm.toString(votingContract.minimumStake()), '",\n',
                 '    "votingDuration": ', vm.toString(votingContract.votingDuration()), ',\n',
                 '    "penaltyPercentage": ', vm.toString(votingContract.penaltyPercentage()), ',\n',
                 '    "karmaReward": ', vm.toString(votingContract.karmaReward()), ',\n',
                 '    "karmaPenalty": ', vm.toString(votingContract.karmaPenalty()), ',\n',
-                '    "minimumVoters": ', vm.toString(votingContract.minimumVoters()), ',\n',
-                '    "minimumKarmaToVote": ', vm.toString(votingContract.minimumKarmaToVote()), ',\n',
-                '    "finalizationRewardPercentage": ', vm.toString(votingContract.finalizationRewardPercentage()), ',\n',
-                '    "minimumTotalVotingPower": "', vm.toString(votingContract.minimumTotalVotingPower()), '"\n',
+                '    "minimumVoters": ', vm.toString(votingContract.minimumVoters()), '\n',
                 '  },\n',
                 '  "timestamp": ', vm.toString(block.timestamp), '\n',
                 '}'
             )
         );
-
-        vm.writeFile("./deployments/unichain-sepolia/deployment.json", deploymentInfo);
-        console2.log("Saved to: ./deployments/unichain-sepolia/deployment.json");
-        console2.log("");
     }
 
     function printDeploymentSummary() internal view {

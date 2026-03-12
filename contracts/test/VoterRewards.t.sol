@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {VedyxVotingContract} from "../src/voting-contract/VedyxVotingContract.sol";
+import {VedyxVotingViews} from "../src/voting-contract/VedyxVotingViews.sol";
 import {VedyxTypes} from "../src/voting-contract/libraries/VedyxTypes.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 
@@ -19,6 +20,7 @@ error InvalidTreasury();
 
 contract VoterRewardsTest is Test {
     VedyxVotingContract public votingContract;
+    VedyxVotingViews public votingViews;
     MockERC20 public stakingToken;
 
     address public owner;
@@ -68,6 +70,8 @@ contract VoterRewardsTest is Test {
             treasury,
             FINALIZATION_FEE_PERCENTAGE
         );
+
+        votingViews = new VedyxVotingViews(address(votingContract));
 
         stakingToken.mint(user1, INITIAL_BALANCE);
         stakingToken.mint(user2, INITIAL_BALANCE);
@@ -122,9 +126,9 @@ contract VoterRewardsTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
 
-        VedyxTypes.Staker memory stakeUser1After = votingContract.getStakerInfo(user1);
-        VedyxTypes.Staker memory stakeUser2After = votingContract.getStakerInfo(user2);
-        VedyxTypes.Staker memory stakeUser3After = votingContract.getStakerInfo(user3);
+        VedyxTypes.Staker memory stakeUser1After = votingViews.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser2After = votingViews.getStakerInfo(user2);
+        VedyxTypes.Staker memory stakeUser3After = votingViews.getStakerInfo(user3);
 
         assertEq(stakeUser1After.stakedAmount, user1StakeBefore + user1Reward);
         assertEq(stakeUser2After.stakedAmount, user2StakeBefore - expectedPenalty);
@@ -165,9 +169,9 @@ contract VoterRewardsTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
 
-        VedyxTypes.Staker memory stakeUser1After = votingContract.getStakerInfo(user1);
-        VedyxTypes.Staker memory stakeUser2After = votingContract.getStakerInfo(user2);
-        VedyxTypes.Staker memory stakeUser3After = votingContract.getStakerInfo(user3);
+        VedyxTypes.Staker memory stakeUser1After = votingViews.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser2After = votingViews.getStakerInfo(user2);
+        VedyxTypes.Staker memory stakeUser3After = votingViews.getStakerInfo(user3);
 
         assertEq(stakeUser1After.stakedAmount, user1StakeBefore + expectedUser1Reward);
         assertEq(stakeUser2After.stakedAmount, user2StakeBefore + expectedUser2Reward);
@@ -206,9 +210,9 @@ contract VoterRewardsTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
 
-        VedyxTypes.Staker memory stakeUser1After = votingContract.getStakerInfo(user1);
-        VedyxTypes.Staker memory stakeUser2After = votingContract.getStakerInfo(user2);
-        VedyxTypes.Staker memory stakeUser3After = votingContract.getStakerInfo(user3);
+        VedyxTypes.Staker memory stakeUser1After = votingViews.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser2After = votingViews.getStakerInfo(user2);
+        VedyxTypes.Staker memory stakeUser3After = votingViews.getStakerInfo(user3);
 
         assertEq(stakeUser1After.stakedAmount, user1StakeBefore + rewardAfterFee);
         assertEq(stakeUser2After.stakedAmount, user2StakeBefore - user2Penalty);
@@ -240,8 +244,8 @@ contract VoterRewardsTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
 
-        VedyxTypes.Staker memory stakeUser1After = votingContract.getStakerInfo(user1);
-        VedyxTypes.Staker memory stakeUser2After = votingContract.getStakerInfo(user2);
+        VedyxTypes.Staker memory stakeUser1After = votingViews.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser2After = votingViews.getStakerInfo(user2);
 
         assertEq(stakeUser1After.stakedAmount, user1StakeBefore);
         assertEq(stakeUser2After.stakedAmount, user2StakeBefore);
@@ -282,9 +286,9 @@ contract VoterRewardsTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
 
-        VedyxTypes.Staker memory stakeUser1After = votingContract.getStakerInfo(user1);
-        VedyxTypes.Staker memory stakeUser2After = votingContract.getStakerInfo(user2);
-        VedyxTypes.Staker memory stakeUser3After = votingContract.getStakerInfo(user3);
+        VedyxTypes.Staker memory stakeUser1After = votingViews.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser2After = votingViews.getStakerInfo(user2);
+        VedyxTypes.Staker memory stakeUser3After = votingViews.getStakerInfo(user3);
 
         // user1 and user2 get penalized
         assertEq(stakeUser1After.stakedAmount, user1StakeBefore - user1Penalty);
@@ -316,7 +320,7 @@ contract VoterRewardsTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId1);
 
-        VedyxTypes.Staker memory stakeUser1 = votingContract.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser1 = votingViews.getStakerInfo(user1);
         assertEq(stakeUser1.karmaPoints, 10);
 
         vm.warp(block.timestamp + 1);
@@ -332,8 +336,8 @@ contract VoterRewardsTest is Test {
         vm.prank(user3);
         votingContract.castVote(votingId2, false);
 
-        (, bool user1VotedFor, uint256 user1VotingPower) = votingContract.getVote(votingId2, user1);
-        (, bool user2VotedFor, uint256 user2VotingPower) = votingContract.getVote(votingId2, user2);
+        (, bool user1VotedFor, uint256 user1VotingPower) = votingViews.getVote(votingId2, user1);
+        (, bool user2VotedFor, uint256 user2VotingPower) = votingViews.getVote(votingId2, user2);
 
         assertTrue(user1VotedFor);
         assertTrue(user2VotedFor);
@@ -341,7 +345,7 @@ contract VoterRewardsTest is Test {
         // Both have same stake (500 ether) but user1 has 10 karma, user2 has 10 karma too
         // So they should have same voting power since both got karma from first vote
         // Let's verify karma bonus is applied
-        VedyxTypes.Staker memory stakeUser2 = votingContract.getStakerInfo(user2);
+        VedyxTypes.Staker memory stakeUser2 = votingViews.getStakerInfo(user2);
         assertEq(stakeUser1.karmaPoints, 10);
         assertEq(stakeUser2.karmaPoints, 10);
 
@@ -350,8 +354,8 @@ contract VoterRewardsTest is Test {
 
         uint256 user1StakeBefore;
         uint256 user2StakeBefore;
-        VedyxTypes.Staker memory stakeUser1Before = votingContract.getStakerInfo(user1);
-        VedyxTypes.Staker memory stakeUser2Before = votingContract.getStakerInfo(user2);
+        VedyxTypes.Staker memory stakeUser1Before = votingViews.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser2Before = votingViews.getStakerInfo(user2);
         user1StakeBefore = stakeUser1Before.stakedAmount;
         user2StakeBefore = stakeUser2Before.stakedAmount;
 
@@ -360,8 +364,8 @@ contract VoterRewardsTest is Test {
 
         uint256 user1StakeAfter;
         uint256 user2StakeAfter;
-        VedyxTypes.Staker memory stakeUser1After = votingContract.getStakerInfo(user1);
-        VedyxTypes.Staker memory stakeUser2After = votingContract.getStakerInfo(user2);
+        VedyxTypes.Staker memory stakeUser1After = votingViews.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser2After = votingViews.getStakerInfo(user2);
         user1StakeAfter = stakeUser1After.stakedAmount;
         user2StakeAfter = stakeUser2After.stakedAmount;
 
@@ -413,10 +417,10 @@ contract VoterRewardsTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
 
-        VedyxTypes.Staker memory stakeUser1After = votingContract.getStakerInfo(user1);
-        VedyxTypes.Staker memory stakeUser2After = votingContract.getStakerInfo(user2);
-        VedyxTypes.Staker memory stakeUser3After = votingContract.getStakerInfo(user3);
-        VedyxTypes.Staker memory stakeUser4After = votingContract.getStakerInfo(user4);
+        VedyxTypes.Staker memory stakeUser1After = votingViews.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser2After = votingViews.getStakerInfo(user2);
+        VedyxTypes.Staker memory stakeUser3After = votingViews.getStakerInfo(user3);
+        VedyxTypes.Staker memory stakeUser4After = votingViews.getStakerInfo(user4);
 
         assertEq(stakeUser1After.stakedAmount, user1StakeBefore + expectedUser1Reward);
         assertEq(stakeUser2After.stakedAmount, user2StakeBefore + expectedUser2Reward);
@@ -470,9 +474,9 @@ contract VoterRewardsTest is Test {
         vm.warp(block.timestamp + VOTING_DURATION + 1);
         votingContract.finalizeVoting(votingId);
 
-        VedyxTypes.Staker memory stakeUser1After = votingContract.getStakerInfo(user1);
-        VedyxTypes.Staker memory stakeUser2After = votingContract.getStakerInfo(user2);
-        VedyxTypes.Staker memory stakeUser3After = votingContract.getStakerInfo(user3);
+        VedyxTypes.Staker memory stakeUser1After = votingViews.getStakerInfo(user1);
+        VedyxTypes.Staker memory stakeUser2After = votingViews.getStakerInfo(user2);
+        VedyxTypes.Staker memory stakeUser3After = votingViews.getStakerInfo(user3);
 
         assertEq(stakeUser1After.stakedAmount, user1StakeBefore + user1Reward);
         assertEq(stakeUser2After.stakedAmount, user2StakeBefore - actualPenalty);

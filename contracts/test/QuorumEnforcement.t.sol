@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {VedyxVotingContract} from "../src/voting-contract/VedyxVotingContract.sol";
+import {VedyxVotingViews} from "../src/voting-contract/VedyxVotingViews.sol";
 import {VedyxTypes} from "../src/voting-contract/libraries/VedyxTypes.sol";
 import {VedyxErrors} from "../src/voting-contract/libraries/VedyxErrors.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
@@ -13,6 +14,7 @@ import {MockERC20} from "./mocks/MockERC20.sol";
  */
 contract QuorumEnforcementTest is Test {
     VedyxVotingContract public votingContract;
+    VedyxVotingViews public votingViews;
     MockERC20 public stakingToken;
 
     address public owner;
@@ -56,6 +58,8 @@ contract QuorumEnforcementTest is Test {
             treasury,
             FINALIZATION_FEE_PERCENTAGE
         );
+
+        votingViews = new VedyxVotingViews(address(votingContract));
 
         // Mint tokens to users
         stakingToken.mint(user1, INITIAL_BALANCE);
@@ -110,7 +114,7 @@ contract QuorumEnforcementTest is Test {
         emit VedyxVotingContract.VotingInconclusive(votingId, suspiciousAddr1, 1, 500 ether);
         votingContract.finalizeVoting(votingId);
 
-        (,,,,, bool finalized,, bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (,,,,, bool finalized,, bool isInconclusive) = votingViews.getVotingDetails(votingId);
         assertTrue(finalized);
         assertTrue(isInconclusive);
     }
@@ -133,7 +137,7 @@ contract QuorumEnforcementTest is Test {
         emit VedyxVotingContract.VotingInconclusive(votingId, suspiciousAddr1, 2, 1000 ether);
         votingContract.finalizeVoting(votingId);
 
-        (,,,,, bool finalized,, bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (,,,,, bool finalized,, bool isInconclusive) = votingViews.getVotingDetails(votingId);
         assertTrue(finalized);
         assertTrue(isInconclusive);
     }
@@ -158,7 +162,7 @@ contract QuorumEnforcementTest is Test {
         // Should succeed
         votingContract.finalizeVoting(votingId);
 
-        (,,,,, bool finalized, bool isSuspicious, bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (,,,,, bool finalized, bool isSuspicious, bool isInconclusive) = votingViews.getVotingDetails(votingId);
         assertTrue(finalized);
         assertTrue(isSuspicious); // 2 vs 1
         assertFalse(isInconclusive);
@@ -190,7 +194,7 @@ contract QuorumEnforcementTest is Test {
         // Should succeed
         votingContract.finalizeVoting(votingId);
 
-        (,,,,, bool finalized, bool isSuspicious, bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (,,,,, bool finalized, bool isSuspicious, bool isInconclusive) = votingViews.getVotingDetails(votingId);
         assertTrue(finalized);
         assertTrue(isSuspicious); // 3 vs 2
         assertFalse(isInconclusive);
@@ -221,7 +225,7 @@ contract QuorumEnforcementTest is Test {
         emit VedyxVotingContract.VotingInconclusive(votingId, suspiciousAddr1, 3, 700 ether);
         votingContract.finalizeVoting(votingId);
 
-        (,,,,, bool finalized,, bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (,,,,, bool finalized,, bool isInconclusive) = votingViews.getVotingDetails(votingId);
         assertTrue(finalized);
         assertTrue(isInconclusive);
     }
@@ -247,7 +251,7 @@ contract QuorumEnforcementTest is Test {
         // Should succeed (meets both quorum requirements)
         votingContract.finalizeVoting(votingId);
 
-        (,,,,, bool finalized,, bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (,,,,, bool finalized,, bool isInconclusive) = votingViews.getVotingDetails(votingId);
         assertTrue(finalized);
         assertFalse(isInconclusive);
     }
@@ -329,7 +333,7 @@ contract QuorumEnforcementTest is Test {
 
         votingContract.finalizeVoting(votingId);
 
-        (,,,,, bool finalized, bool isSuspicious, bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (,,,,, bool finalized, bool isSuspicious, bool isInconclusive) = votingViews.getVotingDetails(votingId);
         assertTrue(finalized);
         assertTrue(isSuspicious); // 1000 vs 500
         assertFalse(isInconclusive);
@@ -358,7 +362,7 @@ contract QuorumEnforcementTest is Test {
 
         votingContract.finalizeVoting(votingId);
 
-        (,,,,, bool finalized, bool isSuspicious, bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (,,,,, bool finalized, bool isSuspicious, bool isInconclusive) = votingViews.getVotingDetails(votingId);
         assertTrue(finalized);
         assertTrue(isSuspicious); // 800 vs 700 (for wins)
         assertFalse(isInconclusive);
@@ -384,7 +388,7 @@ contract QuorumEnforcementTest is Test {
         // Should succeed now with 2 voters
         votingContract.finalizeVoting(votingId);
 
-        (,,,,, bool finalized,, bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (,,,,, bool finalized,, bool isInconclusive) = votingViews.getVotingDetails(votingId);
         assertTrue(finalized);
         assertFalse(isInconclusive);
     }
@@ -427,14 +431,14 @@ contract QuorumEnforcementTest is Test {
 
         // First voting should be inconclusive
         votingContract.finalizeVoting(votingId1);
-        (,,,,, bool finalized1,, bool isInconclusive1) = votingContract.getVotingDetails(votingId1);
+        (,,,,, bool finalized1,, bool isInconclusive1) = votingViews.getVotingDetails(votingId1);
         assertTrue(finalized1);
         assertTrue(isInconclusive1);
 
         // Second voting should succeed
         votingContract.finalizeVoting(votingId2);
 
-        (,,,,, bool finalized2,, bool isInconclusive2) = votingContract.getVotingDetails(votingId2);
+        (,,,,, bool finalized2,, bool isInconclusive2) = votingViews.getVotingDetails(votingId2);
         assertTrue(finalized2);
         assertFalse(isInconclusive2);
     }
@@ -463,7 +467,7 @@ contract QuorumEnforcementTest is Test {
 
         // Should be inconclusive due to insufficient voting power
         votingContract.finalizeVoting(votingId);
-        (,,,,, bool finalized,, bool isInconclusive) = votingContract.getVotingDetails(votingId);
+        (,,,,, bool finalized,, bool isInconclusive) = votingViews.getVotingDetails(votingId);
         assertTrue(finalized);
         assertTrue(isInconclusive);
     }

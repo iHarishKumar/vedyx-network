@@ -5,12 +5,14 @@ import {Test} from "forge-std/Test.sol";
 import {VedyxRiskEngine} from "../../src/risk-engine/VedyxRiskEngine.sol";
 import {IVedyxRiskEngine} from "../../src/risk-engine/interfaces/IVedyxRiskEngine.sol";
 import {VedyxVotingContract} from "../../src/voting-contract/VedyxVotingContract.sol";
+import {VedyxVotingViews} from "../../src/voting-contract/VedyxVotingViews.sol";
 import {IERC20} from "@openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 
 contract VedyxRiskEngineTest is Test {
     VedyxRiskEngine public riskEngine;
     VedyxVotingContract public votingContract;
+    VedyxVotingViews public votingViews;
     MockERC20 public stakingToken;
 
     address public owner = address(this);
@@ -38,7 +40,9 @@ contract VedyxRiskEngineTest is Test {
             FINALIZATION_FEE_PERCENTAGE
         );
 
-        riskEngine = new VedyxRiskEngine(address(votingContract));
+        votingViews = new VedyxVotingViews(address(votingContract));
+
+        riskEngine = new VedyxRiskEngine(address(votingViews));
 
         stakingToken.mint(user1, 10000 ether);
         stakingToken.mint(user2, 10000 ether);
