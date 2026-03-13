@@ -1,0 +1,26 @@
+{
+  "network": "unichain-sepolia",
+  "chainId": 1301,
+  "stakingToken": "0x56211723990ff8AA552Fba1F78d5260959b6cb45",
+  "votingContract": "0x2587Bcb2Bf657017E4114077A553CdDBE1fE3d01",
+  "votingViews": "0x91dd806e6C6Cd4e22694362c4D4dA3943A60E679",
+  "reactiveCallbackProxy": "0x9299472A6399Fd1027ebF067571Eb3e3D7837FC4",
+  "mockTokens": {
+    "USDC": "0x07738F18071CD6e370463DE7f25C72aDdd9Ad9e5",
+    "USDT": "0x9820E45Bcef0c440bF593B05DF425795D93E3F96",
+    "WETH": "0xd0c283b6949620eA0BF99E5237dA65E5D46671ED",
+    "DAI": "0xEaa135fe37126146FC571Bb430B388E837147D9e"
+  },
+  "mockMixers": {
+    "mixer1": "0xE30473a1B31F6fEdA08cA9aE93F58C75beB3Ca91",
+    "mixer2": "0x141cec5e5D24686930f398210ead8DdeF1b2769b"
+  },
+  "configuration": {
+    "minimumStake": "100000000000000000000",
+    "votingDuration": 604800,
+    "penaltyPercentage": 1000,
+    "karmaReward": 10,
+    "karmaPenalty": 2000
+  },
+  "timestamp": 1773372103
+}
