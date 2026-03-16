@@ -120,7 +120,6 @@ contract UpdateVedyxRSC is Script {
             vedyxRSC.subscribe(
                 originChainId,
                 tokens[i],
-                address(0),
                 TRANSFER_TOPIC
             );
             
@@ -171,8 +170,8 @@ contract UpdateVedyxRSC is Script {
 
     function getTokensToMonitor() internal view returns (address[] memory) {
         // Try to load from Sepolia deployment file (where mocks are deployed)
-        try vm.readFile("./deployments/sepolia/deployment.json") returns (string memory json) {
-            console2.log("  Loading tokens from Sepolia deployment file");
+        try vm.readFile("./deployments/unichain-sepolia/deployment.json") returns (string memory json) {
+            console2.log("  Loading tokens from Unichain Sepolia deployment file");
             
             // Parse token addresses from deployment file
             address[] memory tokens = new address[](4);

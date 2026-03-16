@@ -275,7 +275,7 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
         // Check if pattern threshold reached
         if (activity.peelCount >= minPeelCount) {
             // Check if all peels occurred within block window
-            if (_isWithinBlockWindow(activity, blockNumber)) {
+            if (_isWithinBlockWindow(activity)) {
                 activity.hasPattern = true;
                 return true;
             }
@@ -328,8 +328,7 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
      * @dev Temporal analysis to confirm pattern timing
      */
     function _isWithinBlockWindow(
-        AddressActivity storage activity,
-        uint256 currentBlock
+        AddressActivity storage activity
     ) internal view returns (bool) {
         if (activity.outgoingTransfers.length == 0) return false;
         

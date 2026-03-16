@@ -50,7 +50,7 @@ contract VedyxRiskEngineTest is Test {
 
     // ─── Risk Assessment Tests ────────────────────────────────────────────
 
-    function test_GetRiskAssessment_NoVerdict() public {
+    function test_GetRiskAssessment_NoVerdict() public view{
         IVedyxRiskEngine.RiskAssessment memory assessment = riskEngine.getRiskAssessment(user1);
 
         assertEq(assessment.totalScore, 0);
@@ -59,17 +59,17 @@ contract VedyxRiskEngineTest is Test {
         assertEq(assessment.lastUpdated, 0);
     }
 
-    function test_GetRiskLevel_NoVerdict() public {
+    function test_GetRiskLevel_NoVerdict() public view{
         IVedyxRiskEngine.RiskLevel level = riskEngine.getRiskLevel(user1);
         assertEq(uint256(level), uint256(IVedyxRiskEngine.RiskLevel.SAFE));
     }
 
-    function test_GetRiskScore_NoVerdict() public {
+    function test_GetRiskScore_NoVerdict() public view{
         uint8 score = riskEngine.getRiskScore(user1);
         assertEq(score, 0);
     }
 
-    function test_IsSafeAddress_NoVerdict() public {
+    function test_IsSafeAddress_NoVerdict() public view{
         bool isSafe = riskEngine.isSafeAddress(user1);
         assertTrue(isSafe);
     }

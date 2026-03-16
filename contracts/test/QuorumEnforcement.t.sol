@@ -472,7 +472,7 @@ contract QuorumEnforcementTest is Test {
         assertTrue(isInconclusive);
     }
 
-    function test_QuorumEnforcement_DefaultValues() public {
+    function test_QuorumEnforcement_DefaultValues() public view{
         // Verify default values are set correctly
         assertEq(votingContract.minimumVoters(), DEFAULT_MINIMUM_VOTERS);
         assertEq(votingContract.minimumTotalVotingPower(), DEFAULT_MINIMUM_VOTING_POWER);

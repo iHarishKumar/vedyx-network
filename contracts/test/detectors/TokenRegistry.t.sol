@@ -26,7 +26,7 @@ contract TokenRegistryTest is Test {
     
     // ─── Initialization Tests ─────────────────────────────────────────────
     
-    function test_Initialization() public {
+    function test_Initialization() public view{
         assertEq(registry.DEFAULT_DECIMALS(), 18);
         assertEq(registry.owner(), owner);
         assertEq(registry.getConfiguredTokenCount(), 0);
@@ -211,7 +211,7 @@ contract TokenRegistryTest is Test {
         assertEq(registry.getDecimals(USDC), 6);
     }
     
-    function test_GetDecimals_Unconfigured() public {
+    function test_GetDecimals_Unconfigured() public view{
         assertEq(registry.getDecimals(USDC), 18);
     }
     
@@ -296,7 +296,7 @@ contract TokenRegistryTest is Test {
         assertEq(registry.getConfiguredTokenCount(), 0);
     }
     
-    function test_GetDecimalsBatch_EmptyArray() public {
+    function test_GetDecimalsBatch_EmptyArray() public view{
         address[] memory tokens = new address[](0);
         uint8[] memory result = registry.getDecimalsBatch(tokens);
         assertEq(result.length, 0);
@@ -315,7 +315,7 @@ contract TokenRegistryTest is Test {
         assertEq(registry.getSymbol(token), symbol);
     }
     
-    function testFuzz_GetDecimals_Unconfigured(address token) public {
+    function testFuzz_GetDecimals_Unconfigured(address token) public view{
         assertEq(registry.getDecimals(token), 18);
     }
 }

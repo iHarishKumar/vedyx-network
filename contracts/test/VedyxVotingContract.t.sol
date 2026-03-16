@@ -305,7 +305,7 @@ contract VedyxVotingContractTest is Test {
             uint256 votesAgainst,
             bool finalized,
             bool isSuspicious,
-            bool isInconclusive
+            // bool isInconclusive
         ) = votingViews.getVotingDetails(votingId);
 
         assertEq(report.suspiciousAddress, suspiciousAddr);

@@ -177,13 +177,15 @@ contract DeployLasnaTestnet is Script {
         address callbackContract = getCallbackContractAddress();
         uint256 destinationChainId = DESTINATION_CHAIN_ID;
 
-        vedyxRSC = new VedyxExploitDetectorRSC(
+        // Deploy with 0.1 ETH for Reactive Network subscriptions
+        vedyxRSC = new VedyxExploitDetectorRSC{value: 0.1 ether}(
             callbackContract,
             destinationChainId
         );
         console2.log("VedyxExploitDetectorRSC:", address(vedyxRSC));
         console2.log("Callback Contract:", callbackContract);
         console2.log("Destination Chain ID:", destinationChainId);
+        console2.log("Deployed with 0.1 ETH for subscriptions");
         console2.log("");
     }
 
@@ -232,6 +234,12 @@ contract DeployLasnaTestnet is Script {
 
     function subscribeToTransferEvents() internal {
         console2.log("STEP 5: Subscribing to Transfer Events...");
+
+        // Note: Reactive Network uses a debt-based payment model
+        // The system service will automatically request payment via the pay() callback
+        // The contract has 0.1 ETH to cover subscription fees
+        console2.log("Contract balance:", address(vedyxRSC).balance);
+        console2.log("");
 
         // Get token addresses from environment or use defaults
         address[] memory tokens = getTokensToMonitor();

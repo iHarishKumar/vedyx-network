@@ -542,7 +542,7 @@ contract VerdictSystemTest is Test {
         assertFalse(votingViews.willAutoMark(suspiciousAddr1));
     }
 
-    function test_WillAutoMark_ReturnsFalseForNoVerdict() public {
+    function test_WillAutoMark_ReturnsFalseForNoVerdict() public view {
         assertFalse(votingViews.willAutoMark(suspiciousAddr1));
     }
 
