@@ -18,6 +18,9 @@ export function Navbar() {
             <Link href="/detectors" className="text-sm font-medium hover:text-primary transition-colors">
               Detectors
             </Link>
+            <Link href="/staking" className="text-sm font-medium hover:text-primary transition-colors">
+              Staking
+            </Link>
             <Link href="/dashboard" className="text-sm font-medium hover:text-primary transition-colors">
               Dashboard
             </Link>

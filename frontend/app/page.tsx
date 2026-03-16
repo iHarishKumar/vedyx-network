@@ -1,13 +1,10 @@
-"use client";
-
 import Link from "next/link";
-import { Shield, Activity, Bell, Lock, Zap, Globe, TrendingUp, Code, CheckCircle, ArrowRight, Coins } from "lucide-react";
+import { Shield, Activity, Bell, Lock, Zap, Globe, TrendingUp, Code, CheckCircle, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
-import { StakingSection } from "@/components/staking-section";
 
 export default function Home() {
   return (
@@ -60,25 +57,6 @@ export default function Home() {
                 </div>
               </div>
             </div>
-          </div>
-        </section>
-
-        <section className="py-20 bg-muted/30">
-          <div className="container">
-            <div className="mx-auto max-w-2xl text-center mb-12">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border bg-background px-4 py-2 text-sm">
-                <Coins className="h-4 w-4 text-primary" />
-                <span>Participate in Governance</span>
-              </div>
-              <h2 className="mb-4 text-3xl font-bold sm:text-4xl">
-                Stake & Vote
-              </h2>
-              <p className="text-muted-foreground">
-                Stake tokens to participate in voting on suspicious addresses and earn rewards based on your accuracy
-              </p>
-            </div>
-            
-            <StakingSection />
           </div>
         </section>
 
