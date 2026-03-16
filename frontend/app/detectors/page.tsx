@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Shield, Activity, Bell, Lock, Zap, Globe, Search, Filter, TrendingUp, AlertTriangle, Eye, Code, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
-import { VotingDetailsDialog } from "@/components/voting-details-dialog";
 import { fetchDetectorStats, getUniqueChains, getTotalTriggers, getDetectorIdHash, type DetectorWithVotings } from "@/lib/graphql";
 
 interface DetectorDisplay {
@@ -51,10 +50,9 @@ function getDetectorMetadata(detectorName: string) {
 }
 
 export default function Detectors() {
+  const router = useRouter();
   const [detectors, setDetectors] = useState<DetectorDisplay[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDetector, setSelectedDetector] = useState<{ id: string; name: string; originalName: string } | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     async function loadDetectorData() {
@@ -271,12 +269,8 @@ export default function Detectors() {
                               className="flex-1" 
                               size="sm"
                               onClick={() => {
-                                setSelectedDetector({
-                                  id: getDetectorIdHash(detector.originalName),
-                                  name: detector.name,
-                                  originalName: detector.originalName
-                                });
-                                setDialogOpen(true);
+                                const detectorId = getDetectorIdHash(detector.originalName);
+                                router.push(`/detectors/${detectorId}`);
                               }}
                             >
                               <Eye className="h-4 w-4 mr-2" />
@@ -333,15 +327,6 @@ export default function Detectors() {
       </main>
       
       <Footer />
-
-      {selectedDetector && (
-        <VotingDetailsDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          detectorId={selectedDetector.id}
-          detectorName={selectedDetector.name}
-        />
-      )}
     </div>
   );
 }

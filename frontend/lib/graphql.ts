@@ -64,7 +64,7 @@ export function getChainName(chainId: string): string {
 export async function fetchDetectorStats(): Promise<DetectorWithVotings[]> {
   const query = `
     query GetDetectorStats {
-      detectorStats(orderBy: totalVotings, orderDirection: desc) {
+      detectorStats_collection(first: 100, orderBy: totalVotings, orderDirection: desc) {
         id
         detectorId
         detectorName
@@ -72,12 +72,14 @@ export async function fetchDetectorStats(): Promise<DetectorWithVotings[]> {
         totalAutoMarks
         totalSuspiciousVerdicts
         totalCleanVerdicts
-        votings {
+        votings(first: 1000) {
           originChainId
         }
       }
     }
   `;
+
+  console.log("query====", query);
 
   try {
     const response = await fetch(GRAPH_URL, {
@@ -99,7 +101,7 @@ export async function fetchDetectorStats(): Promise<DetectorWithVotings[]> {
       throw new Error("GraphQL query failed");
     }
 
-    return result.data.detectorStats || [];
+    return result.data.detectorStats_collection || [];
   } catch (error) {
     console.error("Error fetching detector stats:", error);
     return [];
@@ -117,6 +119,86 @@ export function getUniqueChains(votings: VotingData[]): string[] {
 
 export function getTotalTriggers(detector: DetectorStatsData): number {
   return parseInt(detector.totalVotings) + parseInt(detector.totalAutoMarks);
+}
+
+export interface DetectorWithVotingsInfo {
+  detectorName: string;
+  votings: VotingDetail[];
+}
+
+export async function fetchDetectorWithVotings(detectorId: string): Promise<DetectorWithVotingsInfo | null> {
+  const query = `
+    query GetDetectorWithVotings($detectorId: Bytes!) {
+      detectorStats_collection(where: { detectorId: $detectorId }, first: 1) {
+        detectorName
+      }
+      votings(
+        where: { detectorId: $detectorId }
+        orderBy: createdAt
+        orderDirection: desc
+        first: 100
+      ) {
+        id
+        votingId
+        suspiciousAddress
+        originChainId
+        originContract
+        value
+        decimals
+        txHash
+        detectorId
+        startTime
+        endTime
+        votesFor
+        votesAgainst
+        totalVotingPower
+        finalized
+        isSuspicious
+        isInconclusive
+        createdAt
+        finalizedAt
+      }
+    }
+  `;
+
+  try {
+    const response = await fetch(GRAPH_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ 
+        query,
+        variables: { detectorId }
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    if (result.errors) {
+      console.error("GraphQL errors:", result.errors);
+      throw new Error("GraphQL query failed");
+    }
+
+    const detectorStats = result.data.detectorStats_collection || [];
+    const votings = result.data.votings || [];
+    
+    if (detectorStats.length === 0) {
+      return null;
+    }
+
+    return {
+      detectorName: detectorStats[0].detectorName,
+      votings: votings
+    };
+  } catch (error) {
+    console.error("Error fetching detector with votings:", error);
+    return null;
+  }
 }
 
 export async function fetchVotingsByDetectorId(detectorId: string): Promise<VotingDetail[]> {

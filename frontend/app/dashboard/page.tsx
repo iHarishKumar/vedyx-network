@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Shield, Activity, AlertTriangle, CheckCircle, TrendingUp, Eye, LayoutDashboard, Bell, Settings, FileText, BarChart3, Plus, Search, Filter } from "lucide-react";
+import { Shield, Activity, AlertTriangle, CheckCircle, TrendingUp, Eye, LayoutDashboard, Bell, Settings, FileText, BarChart3, Plus, Search, Filter, Coins } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Navbar } from "@/components/navbar";
+import { StakingSection } from "@/components/staking-section";
 import Link from "next/link";
 
 export default function Dashboard() {
@@ -14,6 +15,7 @@ export default function Dashboard() {
   
   const sidebarItems = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
+    { id: "staking", label: "Staking", icon: Coins },
     { id: "alerts", label: "Alerts", icon: Bell, badge: 3 },
     { id: "monitors", label: "Monitors", icon: Shield },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
@@ -147,9 +149,13 @@ export default function Dashboard() {
           <div className="container py-8">
             <div className="mb-8 flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold mb-2">Overview</h1>
+                <h1 className="text-3xl font-bold mb-2">
+                  {activeTab === "staking" ? "Staking" : "Overview"}
+                </h1>
                 <p className="text-muted-foreground">
-                  Monitor your smart contracts and respond to security threats in real-time
+                  {activeTab === "staking" 
+                    ? "Stake tokens to participate in voting and earn rewards"
+                    : "Monitor your smart contracts and respond to security threats in real-time"}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -162,6 +168,11 @@ export default function Dashboard() {
                 </Button>
               </div>
             </div>
+
+            {activeTab === "staking" ? (
+              <StakingSection />
+            ) : (
+              <>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
               <Card className="hover:shadow-md transition-shadow">
@@ -330,6 +341,8 @@ export default function Dashboard() {
                 </div>
               </CardContent>
             </Card>
+            </>
+            )}
           </div>
         </main>
       </div>
