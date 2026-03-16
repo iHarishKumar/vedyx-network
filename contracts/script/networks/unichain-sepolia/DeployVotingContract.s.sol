@@ -95,7 +95,7 @@ contract DeployVotingContract is Script {
         saveDeployment();
 
         // Step 6: Verify contracts
-        verifyContracts();
+        verifyContracts(deployer);
 
         // Final summary
         printDeploymentSummary();
@@ -197,7 +197,7 @@ contract DeployVotingContract is Script {
         console2.log("");
     }
 
-    function verifyContracts() internal {
+    function verifyContracts(address deployer) internal {
         console2.log("STEP 6: Verifying Contracts on Etherscan...");
         console2.log("");
         
@@ -206,7 +206,7 @@ contract DeployVotingContract is Script {
         
         // Verify VotingContract
         console2.log("Verifying VedyxVotingContract...");
-        // verifyVotingContract(deployer);
+        verifyVotingContract(deployer);
         
         console2.log("Verification complete!");
         console2.log("");

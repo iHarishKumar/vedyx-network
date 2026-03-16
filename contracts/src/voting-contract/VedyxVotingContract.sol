@@ -177,7 +177,7 @@ contract VedyxVotingContract is ReentrancyGuard, AccessControl, IVedyxVoting, Ab
             verdict.totalIncidents = newIncidentCount;
             addressVotingHistory[suspiciousAddress].push(0);
 
-            emit AddressAutoMarkedSuspicious(suspiciousAddress, newIncidentCount, verdict.lastVotingId, txHash);
+            emit AddressAutoMarkedSuspicious(suspiciousAddress, newIncidentCount, verdict.lastVotingId, txHash, detectorId);
 
             return 0;
         }
@@ -203,7 +203,7 @@ contract VedyxVotingContract is ReentrancyGuard, AccessControl, IVedyxVoting, Ab
         addressVotingHistory[suspiciousAddress].push(votingId);
         verdict.totalIncidents++;
 
-        emit VotingStarted(votingId, suspiciousAddress, voting.endTime);
+        emit VotingStarted(votingId, suspiciousAddress, voting.endTime, detectorId);
 
         return votingId;
     }
@@ -301,29 +301,57 @@ contract VedyxVotingContract is ReentrancyGuard, AccessControl, IVedyxVoting, Ab
             emit VotingInconclusive(
                 votingId, voting.report.suspiciousAddress, voting.voters.length, voting.totalVotingPower
             );
-            verdict.hasVerdict = true;
-            verdict.isSuspicious = false;
-            verdict.lastVotingId = votingId;
-            verdict.verdictTimestamp = block.timestamp;
+            
+            // Only set verdict if no verdict exists yet
+            if (!verdict.hasVerdict) {
+                verdict.hasVerdict = true;
+                verdict.isSuspicious = false;
+                verdict.lastVotingId = votingId;
+                verdict.verdictTimestamp = block.timestamp;
+            }
             return;
         }
 
-        // Quorum met, proceed with normal finalization
+        // Quorum met, proceed with finalization
+        // Check if verdict already exists from a previous voting
+        bool verdictAlreadyExists = verdict.hasVerdict;
+        bool currentConsensus = voting.votesFor > voting.votesAgainst;
+        bool finalVerdict;
 
-        bool consensus = voting.votesFor > voting.votesAgainst;
-        voting.isSuspicious = consensus;
+        if (verdictAlreadyExists) {
+            // Use existing verdict for reward/penalty distribution
+            finalVerdict = verdict.isSuspicious;
+            voting.isSuspicious = currentConsensus;
+            
+            emit VotingFinalizedWithExistingVerdict(votingId, suspiciousAddress, finalVerdict, verdict.lastVotingId);
+            
+            // If current consensus differs from existing verdict, update the verdict
+            if (currentConsensus != verdict.isSuspicious) {
+                verdict.isSuspicious = currentConsensus;
+                verdict.lastVotingId = votingId;
+                verdict.verdictTimestamp = block.timestamp;
+                
+                emit VerdictRecorded(suspiciousAddress, votingId, currentConsensus, block.timestamp);
+            }
+        } else {
+            // No existing verdict, determine consensus from this voting
+            finalVerdict = currentConsensus;
+            voting.isSuspicious = finalVerdict;
 
-        verdict.hasVerdict = true;
-        verdict.isSuspicious = consensus;
-        verdict.lastVotingId = votingId;
-        verdict.verdictTimestamp = block.timestamp;
+            // Record the new verdict
+            verdict.hasVerdict = true;
+            verdict.isSuspicious = finalVerdict;
+            verdict.lastVotingId = votingId;
+            verdict.verdictTimestamp = block.timestamp;
 
-        emit VerdictRecorded(suspiciousAddress, votingId, consensus, block.timestamp);
+            emit VerdictRecorded(suspiciousAddress, votingId, finalVerdict, block.timestamp);
+        }
 
-        _processVotingResults(votingId, consensus);
+        // Process results using the final verdict (existing verdict for this voting's rewards/penalties)
+        _processVotingResults(votingId, finalVerdict);
         _removeActiveVoting(votingId);
 
-        emit VotingFinalized(votingId, voting.report.suspiciousAddress, consensus, voting.votesFor, voting.votesAgainst);
+        emit VotingFinalized(votingId, voting.report.suspiciousAddress, finalVerdict, voting.votesFor, voting.votesAgainst);
 
         uint256 rewardAmount =
             VotingResultsLib.calculateFinalizationReward(totalFeesCollected, finalizationRewardPercentage);

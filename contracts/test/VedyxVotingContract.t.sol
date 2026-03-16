@@ -45,7 +45,7 @@ contract VedyxVotingContractTest is Test {
 
     event Staked(address indexed staker, uint256 amount);
     event Unstaked(address indexed staker, uint256 amount);
-    event VotingStarted(uint256 indexed votingId, address indexed suspiciousAddress, uint256 endTime);
+    event VotingStarted(uint256 indexed votingId, address indexed suspiciousAddress, uint256 endTime, bytes32 indexed detectorId);
     event VoteCast(uint256 indexed votingId, address indexed voter, bool votedFor, uint256 votingPower);
     event VotingFinalized(
         uint256 indexed votingId,
@@ -66,6 +66,9 @@ contract VedyxVotingContractTest is Test {
     event FinalizationFeeUpdated(uint256 newFeePercentage);
     event FeeCollected(address indexed staker, uint256 feeAmount);
     event VoterRewarded(address indexed voter, uint256 indexed votingId, uint256 rewardAmount);
+    event VotingFinalizedWithExistingVerdict(
+        uint256 indexed votingId, address indexed suspiciousAddress, bool existingVerdict, uint256 originalVotingId
+    );
 
     function setUp() public {
         owner = address(this);
@@ -287,8 +290,8 @@ contract VedyxVotingContractTest is Test {
         uint256 decimals = 18;
         uint256 txHash = 12345;
 
-        vm.expectEmit(true, true, false, false);
-        emit VotingStarted(1, suspiciousAddr, block.timestamp + VOTING_DURATION);
+        vm.expectEmit(true, true, true, false);
+        emit VotingStarted(1, suspiciousAddr, block.timestamp + VOTING_DURATION, bytes32(0));
 
         vm.prank(callbackAuthorizer);
         uint256 votingId = votingContract.tagSuspicious(
@@ -1178,5 +1181,142 @@ contract VedyxVotingContractTest is Test {
 
         (,,,,,, bool isSuspicious,) = votingViews.getVotingDetails(votingId);
         assertFalse(isSuspicious);
+    }
+
+    function test_MultipleVotingsUsesExistingVerdict() public {
+        // Setup: Stake for all users
+        vm.prank(user1);
+        votingContract.stake(500 ether);
+        vm.prank(user2);
+        votingContract.stake(500 ether);
+        vm.prank(user3);
+        votingContract.stake(500 ether);
+
+        // First voting: Tag suspicious address
+        vm.prank(callbackAuthorizer);
+        uint256 votingId1 =
+            votingContract.tagSuspicious(suspiciousAddr, 1, address(0x123), 1000 ether, 18, 12345, bytes32(0));
+
+        // Vote on first voting (majority says suspicious) - need 3 voters for quorum
+        vm.prank(user1);
+        votingContract.castVote(votingId1, true);
+        vm.prank(user2);
+        votingContract.castVote(votingId1, true);
+        vm.prank(user3);
+        votingContract.castVote(votingId1, false);
+
+        // Second voting: Tag same address again BEFORE first is finalized
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(callbackAuthorizer);
+        uint256 votingId2 =
+            votingContract.tagSuspicious(suspiciousAddr, 1, address(0x456), 2000 ether, 18, 67890, bytes32(0));
+
+        // Vote on second voting (majority says NOT suspicious - but this should be ignored)
+        vm.prank(user1);
+        votingContract.castVote(votingId2, false);
+        vm.prank(user2);
+        votingContract.castVote(votingId2, false);
+        vm.prank(user3);
+        votingContract.castVote(votingId2, false);
+
+        // Finalize first voting (establishes verdict: suspicious)
+        vm.warp(block.timestamp + VOTING_DURATION + 1);
+        votingContract.finalizeVoting(votingId1);
+
+        // Check first voting result
+        (,,,,,, bool isSuspicious1,) = votingViews.getVotingDetails(votingId1);
+        assertTrue(isSuspicious1, "First voting should be suspicious");
+
+        // Check verdict is recorded
+        (bool hasVerdict, bool verdictIsSuspicious, uint256 lastVotingId,,) = 
+            votingViews.getAddressVerdict(suspiciousAddr);
+        assertTrue(hasVerdict, "Verdict should exist");
+        assertTrue(verdictIsSuspicious, "Verdict should be suspicious");
+        assertEq(lastVotingId, votingId1, "Last voting ID should be first voting");
+
+        // Finalize second voting (should use existing verdict)
+        vm.warp(block.timestamp + VOTING_DURATION + 1);
+        
+        // Expect the event indicating existing verdict is being used
+        vm.expectEmit(true, true, false, true);
+        emit VotingFinalizedWithExistingVerdict(votingId2, suspiciousAddr, true, votingId1);
+        
+        votingContract.finalizeVoting(votingId2);
+
+        // Check second voting stored its own consensus (false) in voting.isSuspicious
+        (,,,,,, bool isSuspicious2,) = votingViews.getVotingDetails(votingId2);
+        assertFalse(isSuspicious2, "Second voting should store its own consensus (not suspicious)");
+
+        // Verify verdict was updated because consensus changed
+        (hasVerdict, verdictIsSuspicious, lastVotingId,,) = 
+            votingViews.getAddressVerdict(suspiciousAddr);
+        assertTrue(hasVerdict, "Verdict should still exist");
+        assertFalse(verdictIsSuspicious, "Verdict should be updated to not suspicious");
+        assertEq(lastVotingId, votingId2, "Last voting ID should be updated to second voting");
+
+        // Verify rewards/penalties were distributed based on existing verdict
+        // All users voted "false" on voting2, but verdict is "suspicious"
+        // So they should all be penalized
+        VedyxTypes.Staker memory staker1After = votingViews.getStakerInfo(user1);
+        VedyxTypes.Staker memory staker2After = votingViews.getStakerInfo(user2);
+        VedyxTypes.Staker memory staker3After = votingViews.getStakerInfo(user3);
+        
+        // All should have penalties applied (voted wrong according to existing verdict)
+        assertLt(staker1After.stakedAmount, 500 ether, "User1 should be penalized");
+        assertLt(staker2After.stakedAmount, 500 ether, "User2 should be penalized");
+        assertLt(staker3After.stakedAmount, 500 ether, "User3 should be penalized");
+    }
+
+    function test_MultipleVotingsInconclusiveDoesNotOverwriteVerdict() public {
+        // Setup: Stake for users
+        vm.prank(user1);
+        votingContract.stake(500 ether);
+        vm.prank(user2);
+        votingContract.stake(500 ether);
+        vm.prank(user3);
+        votingContract.stake(500 ether);
+
+        // First voting: Tag suspicious address
+        vm.prank(callbackAuthorizer);
+        uint256 votingId1 =
+            votingContract.tagSuspicious(suspiciousAddr, 1, address(0x123), 1000 ether, 18, 12345, bytes32(0));
+
+        // Vote on first voting (majority says suspicious) - need 3 voters for quorum
+        vm.prank(user1);
+        votingContract.castVote(votingId1, true);
+        vm.prank(user2);
+        votingContract.castVote(votingId1, true);
+        vm.prank(user3);
+        votingContract.castVote(votingId1, false);
+
+        // Second voting: Tag same address again
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(callbackAuthorizer);
+        uint256 votingId2 =
+            votingContract.tagSuspicious(suspiciousAddr, 1, address(0x456), 2000 ether, 18, 67890, bytes32(0));
+
+        // Don't vote on second voting (will be inconclusive)
+
+        // Finalize first voting (establishes verdict: suspicious)
+        vm.warp(block.timestamp + VOTING_DURATION + 1);
+        votingContract.finalizeVoting(votingId1);
+
+        // Check verdict is recorded
+        (bool hasVerdict, bool verdictIsSuspicious, uint256 lastVotingId,,) = 
+            votingViews.getAddressVerdict(suspiciousAddr);
+        assertTrue(hasVerdict, "Verdict should exist");
+        assertTrue(verdictIsSuspicious, "Verdict should be suspicious");
+        assertEq(lastVotingId, votingId1, "Last voting ID should be first voting");
+
+        // Finalize second voting (inconclusive, should NOT overwrite verdict)
+        vm.warp(block.timestamp + VOTING_DURATION + 1);
+        votingContract.finalizeVoting(votingId2);
+
+        // Verify verdict hasn't changed
+        (hasVerdict, verdictIsSuspicious, lastVotingId,,) = 
+            votingViews.getAddressVerdict(suspiciousAddr);
+        assertTrue(hasVerdict, "Verdict should still exist");
+        assertTrue(verdictIsSuspicious, "Verdict should still be suspicious");
+        assertEq(lastVotingId, votingId1, "Last voting ID should still be first voting");
     }
 }

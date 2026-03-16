@@ -44,9 +44,9 @@ contract VerdictSystemTest is Test {
 
     bytes32 public constant GOVERNANCE_ROLE = keccak256("GOVERNANCE_ROLE");
 
-    event VotingStarted(uint256 indexed votingId, address indexed suspiciousAddress, uint256 endTime);
+    event VotingStarted(uint256 indexed votingId, address indexed suspiciousAddress, uint256 endTime, bytes32 indexed detectorId);
     event AddressAutoMarkedSuspicious(
-        address indexed suspiciousAddress, uint256 indexed incidentNumber, uint256 previousVotingId, uint256 txHash
+        address indexed suspiciousAddress, uint256 indexed incidentNumber, uint256 previousVotingId, uint256 txHash, bytes32 indexed detectorId
     );
     event VerdictRecorded(
         address indexed suspiciousAddress, uint256 indexed votingId, bool isSuspicious, uint256 timestamp
@@ -110,8 +110,8 @@ contract VerdictSystemTest is Test {
     // ═══════════════════════════════════════════════════════════════════════
 
     function test_FirstOffense_CreatesVoting() public {
-        vm.expectEmit(true, true, false, true);
-        emit VotingStarted(1, suspiciousAddr1, block.timestamp + VOTING_DURATION);
+        vm.expectEmit(true, true, true, true);
+        emit VotingStarted(1, suspiciousAddr1, block.timestamp + VOTING_DURATION, bytes32(0));
 
         vm.prank(callbackAuthorizer);
         uint256 votingId =
@@ -203,8 +203,8 @@ contract VerdictSystemTest is Test {
         votingContract.finalizeVoting(votingId1);
 
         // Second offense - should be auto-marked
-        vm.expectEmit(true, true, false, true);
-        emit AddressAutoMarkedSuspicious(suspiciousAddr1, 2, votingId1, 67890);
+        vm.expectEmit(true, true, true, true);
+        emit AddressAutoMarkedSuspicious(suspiciousAddr1, 2, votingId1, 67890, bytes32(0));
 
         vm.prank(callbackAuthorizer);
         uint256 votingId2 =
@@ -299,8 +299,8 @@ contract VerdictSystemTest is Test {
         votingContract.finalizeVoting(votingId1);
 
         // Second offense - should create new voting (new evidence)
-        vm.expectEmit(true, true, false, true);
-        emit VotingStarted(2, suspiciousAddr1, block.timestamp + VOTING_DURATION);
+        vm.expectEmit(true, true, true, true);
+        emit VotingStarted(2, suspiciousAddr1, block.timestamp + VOTING_DURATION, bytes32(0));
 
         vm.prank(callbackAuthorizer);
         uint256 votingId2 =
@@ -413,8 +413,8 @@ contract VerdictSystemTest is Test {
         votingContract.clearAddressVerdict(suspiciousAddr1);
 
         // Tag again - should create new voting (not auto-mark)
-        vm.expectEmit(true, true, false, true);
-        emit VotingStarted(2, suspiciousAddr1, block.timestamp + VOTING_DURATION);
+        vm.expectEmit(true, true, true, true);
+        emit VotingStarted(2, suspiciousAddr1, block.timestamp + VOTING_DURATION, bytes32(0));
 
         vm.prank(callbackAuthorizer);
         uint256 votingId2 =

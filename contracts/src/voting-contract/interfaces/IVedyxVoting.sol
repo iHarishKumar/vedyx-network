@@ -14,7 +14,7 @@ interface IVedyxVoting {
     event FeeCollected(address indexed staker, uint256 feeAmount);
     event TreasuryUpdated(address indexed newTreasury);
     event FinalizationFeeUpdated(uint256 newFeePercentage);
-    event VotingStarted(uint256 indexed votingId, address indexed suspiciousAddress, uint256 endTime);
+    event VotingStarted(uint256 indexed votingId, address indexed suspiciousAddress, uint256 endTime, bytes32 indexed detectorId);
     event VoteCast(uint256 indexed votingId, address indexed voter, bool votedFor, uint256 votingPower);
     event VotingFinalized(
         uint256 indexed votingId,
@@ -24,12 +24,15 @@ interface IVedyxVoting {
         uint256 votesAgainst
     );
     event AddressAutoMarkedSuspicious(
-        address indexed suspiciousAddress, uint256 indexed incidentNumber, uint256 previousVotingId, uint256 txHash
+        address indexed suspiciousAddress, uint256 indexed incidentNumber, uint256 previousVotingId, uint256 txHash, bytes32 indexed detectorId
     );
     event VerdictRecorded(
         address indexed suspiciousAddress, uint256 indexed votingId, bool isSuspicious, uint256 timestamp
     );
     event VerdictCleared(address indexed suspiciousAddress, address indexed clearedBy);
+    event VotingFinalizedWithExistingVerdict(
+        uint256 indexed votingId, address indexed suspiciousAddress, bool existingVerdict, uint256 originalVotingId
+    );
     event FinalizationRewardPaid(uint256 indexed votingId, address indexed finalizer, uint256 rewardAmount);
 
     // ─── Staking Functions ────────────────────────────────────────────────
