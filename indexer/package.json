@@ -1,0 +1,35 @@
+{
+  "name": "vedyx-indexer",
+  "version": "1.0.0",
+  "description": "The Graph indexer for Vedyx Protocol - tracks voting, staking, and address verdicts",
+  "scripts": {
+    "prepare": "node scripts/prepare-subgraph.js",
+    "prepare:unichain-testnet": "node scripts/prepare-subgraph.js unichain-testnet",
+    "prepare:mainnet": "node scripts/prepare-subgraph.js mainnet",
+    "codegen": "graph codegen",
+    "build": "graph build",
+    "build:unichain-testnet": "npm run prepare:unichain-testnet && npm run codegen && npm run build",
+    "build:mainnet": "npm run prepare:mainnet && npm run codegen && npm run build",
+    "deploy": "graph deploy --studio vedyx-testnet",
+    "deploy:unichain-testnet": "npm run build:unichain-testnet && npm run deploy",
+    "deploy:mainnet": "npm run build:mainnet && npm run deploy",
+    "create-local": "graph create --node http://localhost:8020/ vedyx-protocol",
+    "remove-local": "graph remove --node http://localhost:8020/ vedyx-protocol",
+    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 vedyx-protocol",
+    "test": "graph test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vedyx/vedyx-protocol"
+  },
+  "author": "Vedyx Team",
+  "license": "MIT",
+  "dependencies": {
+    "@graphprotocol/graph-cli": "^0.69.0",
+    "@graphprotocol/graph-ts": "^0.35.1",
+    "mustache": "^4.2.0"
+  },
+  "devDependencies": {
+    "matchstick-as": "^0.6.0"
+  }
+}

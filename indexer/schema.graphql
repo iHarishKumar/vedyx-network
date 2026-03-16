@@ -1,0 +1,166 @@
+type Staker @entity {
+  id: ID!
+  address: Bytes!
+  stakedAmount: BigInt!
+  lockedAmount: BigInt!
+  karmaPoints: BigInt!
+  totalVotes: BigInt!
+  correctVotes: BigInt!
+  votes: [Vote!]! @derivedFrom(field: "voter")
+  stakes: [StakeEvent!]! @derivedFrom(field: "staker")
+  unstakes: [UnstakeEvent!]! @derivedFrom(field: "staker")
+  createdAt: BigInt!
+  updatedAt: BigInt!
+}
+
+type Voting @entity {
+  id: ID!
+  votingId: BigInt!
+  suspiciousAddress: Bytes!
+  originChainId: BigInt!
+  originContract: Bytes!
+  value: BigInt!
+  decimals: BigInt!
+  txHash: BigInt!
+  detectorId: Bytes!
+  detectorStats: DetectorStats
+  startTime: BigInt!
+  endTime: BigInt!
+  votesFor: BigInt!
+  votesAgainst: BigInt!
+  totalVotingPower: BigInt!
+  finalized: Boolean!
+  isSuspicious: Boolean!
+  isInconclusive: Boolean!
+  votes: [Vote!]! @derivedFrom(field: "voting")
+  verdict: AddressVerdict
+  createdAt: BigInt!
+  finalizedAt: BigInt
+}
+
+type DetectorStats @entity {
+  id: ID!
+  detectorId: Bytes!
+  detectorName: String!
+  totalVotings: BigInt!
+  totalAutoMarks: BigInt!
+  totalSuspiciousVerdicts: BigInt!
+  totalCleanVerdicts: BigInt!
+  votings: [Voting!]! @derivedFrom(field: "detectorStats")
+  updatedAt: BigInt!
+}
+
+type Vote @entity {
+  id: ID!
+  voting: Voting!
+  voter: Staker!
+  votedFor: Boolean!
+  votingPower: BigInt!
+  stakedSnapshot: BigInt!
+  wasCorrect: Boolean
+  penaltyApplied: BigInt
+  rewardReceived: BigInt
+  karmaChange: BigInt
+  timestamp: BigInt!
+}
+
+type AddressVerdict @entity {
+  id: ID!
+  address: Bytes!
+  hasVerdict: Boolean!
+  isSuspicious: Boolean!
+  lastVotingId: BigInt!
+  verdictTimestamp: BigInt!
+  totalIncidents: BigInt!
+  votings: [Voting!]! @derivedFrom(field: "verdict")
+  autoMarkedEvents: [AutoMarkEvent!]! @derivedFrom(field: "verdict")
+  clearedEvents: [VerdictClearedEvent!]! @derivedFrom(field: "verdict")
+  createdAt: BigInt!
+  updatedAt: BigInt!
+}
+
+type StakeEvent @entity {
+  id: ID!
+  staker: Staker!
+  amount: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+type UnstakeEvent @entity {
+  id: ID!
+  staker: Staker!
+  amount: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+type AutoMarkEvent @entity {
+  id: ID!
+  verdict: AddressVerdict!
+  suspiciousAddress: Bytes!
+  incidentNumber: BigInt!
+  previousVotingId: BigInt!
+  txHash: BigInt!
+  detectorId: Bytes!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+type VerdictClearedEvent @entity {
+  id: ID!
+  verdict: AddressVerdict!
+  suspiciousAddress: Bytes!
+  clearedBy: Bytes!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+type FeeCollectedEvent @entity {
+  id: ID!
+  recipient: Bytes!
+  amount: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+type FinalizationReward @entity {
+  id: ID!
+  votingId: BigInt!
+  finalizer: Bytes!
+  amount: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+type GlobalStats @entity {
+  id: ID!
+  totalStakers: BigInt!
+  totalStaked: BigInt!
+  totalVotings: BigInt!
+  totalVotingsConcluded: BigInt!
+  totalVotingsInconclusive: BigInt!
+  totalSuspiciousVerdicts: BigInt!
+  totalCleanVerdicts: BigInt!
+  totalFeesCollected: BigInt!
+  totalPenaltiesApplied: BigInt!
+  totalRewardsDistributed: BigInt!
+  updatedAt: BigInt!
+}
+
+type ParameterUpdate @entity {
+  id: ID!
+  parameter: String!
+  oldValue: BigInt!
+  newValue: BigInt!
+  updatedBy: Bytes!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}

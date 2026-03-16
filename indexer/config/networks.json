@@ -1,0 +1,14 @@
+{
+  "unichain-testnet": {
+    "network": "unichain-testnet",
+    "votingContractAddress": "0x4958A6535f634f4109e6ca4D27A2E7E55c6A6fA6",
+    "startBlock": 46795155,
+    "graphNetwork": "unichain-testnet"
+  },
+  "mainnet": {
+    "network": "mainnet",
+    "votingContractAddress": "0x0000000000000000000000000000000000000000",
+    "startBlock": 0,
+    "graphNetwork": "mainnet"
+  }
+}

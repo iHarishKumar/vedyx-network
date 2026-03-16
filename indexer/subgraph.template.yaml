@@ -1,0 +1,78 @@
+specVersion: 1.0.0
+indexerHints:
+  prune: auto
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: VedyxVotingContract
+    network: {{graphNetwork}}
+    source:
+      address: "{{votingContractAddress}}"
+      abi: VedyxVotingContract
+      startBlock: {{startBlock}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Staker
+        - Voting
+        - Vote
+        - AddressVerdict
+        - StakeEvent
+        - UnstakeEvent
+        - AutoMarkEvent
+        - VerdictClearedEvent
+        - FeeCollectedEvent
+        - FinalizationReward
+        - GlobalStats
+        - ParameterUpdate
+        - DetectorStats
+      abis:
+        - name: VedyxVotingContract
+          file: ./abis/VedyxVotingContract.json
+      eventHandlers:
+        - event: Staked(indexed address,uint256)
+          handler: handleStaked
+        - event: Unstaked(indexed address,uint256)
+          handler: handleUnstaked
+        - event: VotingStarted(indexed uint256,indexed address,uint256,indexed bytes32)
+          handler: handleVotingStarted
+        - event: VoteCast(indexed uint256,indexed address,bool,uint256)
+          handler: handleVoteCast
+        - event: VotingFinalized(indexed uint256,indexed address,bool,uint256,uint256)
+          handler: handleVotingFinalized
+        - event: VotingInconclusive(indexed uint256,indexed address,uint256,uint256)
+          handler: handleVotingInconclusive
+        - event: AddressAutoMarkedSuspicious(indexed address,indexed uint256,uint256,uint256,indexed bytes32)
+          handler: handleAddressAutoMarkedSuspicious
+        - event: VerdictRecorded(indexed address,indexed uint256,bool,uint256)
+          handler: handleVerdictRecorded
+        - event: VerdictCleared(indexed address,indexed address)
+          handler: handleVerdictCleared
+        - event: FeeCollected(indexed address,uint256)
+          handler: handleFeeCollected
+        - event: FinalizationRewardPaid(indexed uint256,indexed address,uint256)
+          handler: handleFinalizationRewardPaid
+        - event: MinimumStakeUpdated(uint256)
+          handler: handleMinimumStakeUpdated
+        - event: VotingDurationUpdated(uint256)
+          handler: handleVotingDurationUpdated
+        - event: PenaltyPercentageUpdated(uint256)
+          handler: handlePenaltyPercentageUpdated
+        - event: MinimumKarmaToVoteUpdated(int256)
+          handler: handleMinimumKarmaToVoteUpdated
+        - event: FinalizationRewardPercentageUpdated(uint256)
+          handler: handleFinalizationRewardPercentageUpdated
+        - event: MinimumVotersUpdated(uint256)
+          handler: handleMinimumVotersUpdated
+        - event: MinimumTotalVotingPowerUpdated(uint256)
+          handler: handleMinimumTotalVotingPowerUpdated
+        - event: TreasuryUpdated(indexed address)
+          handler: handleTreasuryUpdated
+        - event: FinalizationFeeUpdated(uint256)
+          handler: handleFinalizationFeeUpdated
+        - event: CallbackAuthorizerUpdated(indexed address)
+          handler: handleCallbackAuthorizerUpdated
+      file: ./src/mapping.ts
