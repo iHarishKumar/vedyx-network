@@ -69,59 +69,63 @@ export default function StakingPage() {
 
         <section className="py-12 bg-muted/30">
           <div className="container">
-            <StakingSection />
-          </div>
-        </section>
+            <div className="grid gap-8 lg:grid-cols-3">
+              {/* Main Staking Section - Takes 2 columns */}
+              <div className="lg:col-span-2">
+                <StakingSection />
+              </div>
 
-        <section className="py-12 border-t">
-          <div className="container">
-            <div className="mx-auto max-w-3xl">
-              <h2 className="text-2xl font-bold mb-6 text-center">How Staking Works</h2>
-              
+              {/* How It Works Sidebar - Takes 1 column */}
               <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">1. Stake Your Tokens</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">
-                      Approve and stake your tokens to the voting contract. Your staked amount determines your voting power and eligibility to participate in governance.
-                    </p>
-                  </CardContent>
-                </Card>
+                <div>
+                  <h2 className="text-2xl font-bold mb-6">How Staking Works</h2>
+                  
+                  <div className="space-y-4">
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base">1. Stake Your Tokens</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground">
+                          Approve and stake tokens. Your staked amount determines voting power.
+                        </p>
+                      </CardContent>
+                    </Card>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">2. Vote on Suspicious Addresses</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">
-                      Review flagged addresses and cast your vote on whether they are suspicious or clean. Your stake is locked while you have active votes.
-                    </p>
-                  </CardContent>
-                </Card>
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base">2. Vote on Addresses</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground">
+                          Review flagged addresses and vote. Your stake locks during active votes.
+                        </p>
+                      </CardContent>
+                    </Card>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">3. Earn Rewards & Build Karma</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">
-                      Correct votes earn you karma points and rewards. Incorrect votes may result in karma penalties. High karma increases your voting power and influence.
-                    </p>
-                  </CardContent>
-                </Card>
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base">3. Earn Rewards</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground">
+                          Correct votes earn karma and rewards. Build reputation over time.
+                        </p>
+                      </CardContent>
+                    </Card>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">4. Unstake When Ready</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">
-                      Withdraw your unlocked tokens at any time. Tokens locked in active votes will be available once those votes are finalized.
-                    </p>
-                  </CardContent>
-                </Card>
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base">4. Unstake Anytime</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground">
+                          Withdraw unlocked tokens. Locked tokens release when votes finalize.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
