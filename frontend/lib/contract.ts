@@ -1,6 +1,7 @@
-import { BrowserProvider, Contract, parseUnits } from "ethers";
+import { BrowserProvider, Contract, parseUnits, formatUnits } from "ethers";
 
 const VOTING_CONTRACT_ADDRESS = "0x4958A6535f634f4109e6ca4D27A2E7E55c6A6fA6";
+const STAKING_TOKEN_ADDRESS = "0x80f9b7540aAEB8C77bc5ca9CC2f01405709980CA";
 const UNICHAIN_SEPOLIA_CHAIN_ID = 1301;
 
 const VOTING_CONTRACT_ABI = [
@@ -9,6 +10,14 @@ const VOTING_CONTRACT_ABI = [
   "function unstake(uint256 amount) external",
   "function stakers(address) external view returns (uint256 stakedAmount, int256 karmaPoints, uint256 totalVotes, uint256 correctVotes, uint256 lockedAmount)",
   "function votings(uint256) external view returns (uint256 votingId, uint256 startTime, uint256 endTime, uint256 votesFor, uint256 votesAgainst, uint256 totalVotingPower, bool finalized, bool isSuspicious, bool isInconclusive)",
+];
+
+const ERC20_ABI = [
+  "function balanceOf(address owner) view returns (uint256)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function decimals() view returns (uint8)",
+  "function symbol() view returns (string)",
 ];
 
 async function ensureCorrectNetwork() {
