@@ -1,0 +1,5 @@
+#!/bin/bash
+cd contracts
+forge build
+cp out/VedyxVotingContract.sol/VedyxVotingContract.json ../indexer/abis/
+git add ../indexer/abis/VedyxVotingContract.json

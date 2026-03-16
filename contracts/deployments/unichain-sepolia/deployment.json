@@ -3,19 +3,19 @@
   "chainId": 1301,
   "reactiveCallbackProxy": "0x9299472A6399Fd1027ebF067571Eb3e3D7837FC4",
   "contracts": {
-    "stakingToken": "0x56211723990ff8AA552Fba1F78d5260959b6cb45",
-    "votingContract": "0x2587Bcb2Bf657017E4114077A553CdDBE1fE3d01",
-    "riskEngine": "0x4d49e73d84ee949cD30c2d3984bf900B554a912b"
+    "stakingToken": "0x80f9b7540aAEB8C77bc5ca9CC2f01405709980CA",
+    "votingContract": "0x4958A6535f634f4109e6ca4D27A2E7E55c6A6fA6",
+    "riskEngine": "0x6b1a0Eaa32eaf368E4840033b4E3Af9fA95e0D13"
   },
   "mockTokens": {
-    "USDC": "0x07738F18071CD6e370463DE7f25C72aDdd9Ad9e5",
-    "USDT": "0x9820E45Bcef0c440bF593B05DF425795D93E3F96",
-    "WETH": "0xd0c283b6949620eA0BF99E5237dA65E5D46671ED",
-    "DAI": "0xEaa135fe37126146FC571Bb430B388E837147D9e"
+    "USDC": "0x0A0b85243Dd302eC8e386b5B0C76395961c9CB34",
+    "USDT": "0xc01aF3D2BCf3A10A9bf5eb5C6f72e3584291C681",
+    "WETH": "0x51dd05ED2CC77a5E22F3c55A4b9FF151B0Dd6cD3",
+    "DAI": "0x7d6Dfb03b86B9723445a980CFdb9324861b11309"
   },
   "mockMixers": {
-    "mixer1": "0xE30473a1B31F6fEdA08cA9aE93F58C75beB3Ca91",
-    "mixer2": "0x141cec5e5D24686930f398210ead8DdeF1b2769b"
+    "mixer1": "0x81d41a900CE0c4856c79F92e5a7b660Dc95ef2d9",
+    "mixer2": "0xC71A8536D6bc2A1b4356Bee354398aB0423c8043"
   },
   "configuration": {
     "minimumStake": "100000000000000000000",
@@ -25,5 +25,5 @@
     "karmaPenalty": 2000,
     "minimumVoters": 3
   },
-  "timestamp": 1773372103
+  "timestamp": 1773671368
 }
