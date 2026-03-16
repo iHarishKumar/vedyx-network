@@ -21,12 +21,6 @@ export function Navbar() {
             <Link href="/dashboard" className="text-sm font-medium hover:text-primary transition-colors">
               Dashboard
             </Link>
-            <Link href="/monitors" className="text-sm font-medium hover:text-primary transition-colors">
-              Monitors
-            </Link>
-            <Link href="/alerts" className="text-sm font-medium hover:text-primary transition-colors">
-              Alerts
-            </Link>
             <Link href="/docs" className="text-sm font-medium hover:text-primary transition-colors">
               Docs
             </Link>
