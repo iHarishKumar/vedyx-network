@@ -373,7 +373,7 @@ contract VedyxRiskHookTest is Test, Deployers {
         });
         
         vm.prank(address(manager));
-        vm.expectRevert("HIGH risk level - address blocked");
+        vm.expectRevert(abi.encodeWithSelector(VedyxRiskHook.AddressBlockedFromSwap.selector, lowRiskUser, "HIGH risk level - address blocked"));
         hook.beforeSwap(lowRiskUser, testPoolKey, params, "");
     }
     
@@ -385,7 +385,7 @@ contract VedyxRiskHookTest is Test, Deployers {
         });
         
         vm.prank(address(manager));
-        vm.expectRevert("CRITICAL risk level - address blocked");
+        vm.expectRevert(abi.encodeWithSelector(VedyxRiskHook.AddressBlockedFromSwap.selector, mediumRiskUser, "CRITICAL risk level - address blocked"));
         hook.beforeSwap(mediumRiskUser, testPoolKey, params, "");
     }
     
@@ -401,7 +401,7 @@ contract VedyxRiskHookTest is Test, Deployers {
         emit SwapBlocked(highRiskUser, IVedyxRiskEngine.RiskLevel.CRITICAL, assessment.totalScore);
         
         vm.prank(address(manager));
-        vm.expectRevert("CRITICAL risk level - address blocked");
+        vm.expectRevert(abi.encodeWithSelector(VedyxRiskHook.AddressBlockedFromSwap.selector, highRiskUser, "CRITICAL risk level - address blocked"));
         hook.beforeSwap(highRiskUser, testPoolKey, params, "");
     }
     
@@ -413,7 +413,7 @@ contract VedyxRiskHookTest is Test, Deployers {
         });
         
         vm.prank(address(manager));
-        vm.expectRevert("CRITICAL risk level - address blocked");
+        vm.expectRevert(abi.encodeWithSelector(VedyxRiskHook.AddressBlockedFromSwap.selector, criticalRiskUser, "CRITICAL risk level - address blocked"));
         hook.beforeSwap(criticalRiskUser, testPoolKey, params, "");
     }
     
@@ -475,7 +475,7 @@ contract VedyxRiskHookTest is Test, Deployers {
         });
         
         vm.prank(address(manager));
-        vm.expectRevert("VedyxRiskHook: Address blocked from adding liquidity");
+        vm.expectRevert(abi.encodeWithSelector(VedyxRiskHook.AddressBlockedFromAddingLiquidity.selector, lowRiskUser));
         hook.beforeAddLiquidity(lowRiskUser, testPoolKey, params, "");
     }
     
@@ -491,7 +491,7 @@ contract VedyxRiskHookTest is Test, Deployers {
         emit LiquidityBlocked(mediumRiskUser, true, IVedyxRiskEngine.RiskLevel.CRITICAL);
         
         vm.prank(address(manager));
-        vm.expectRevert("VedyxRiskHook: Address blocked from adding liquidity");
+        vm.expectRevert(abi.encodeWithSelector(VedyxRiskHook.AddressBlockedFromAddingLiquidity.selector, mediumRiskUser));
         hook.beforeAddLiquidity(mediumRiskUser, testPoolKey, params, "");
     }
     
@@ -504,7 +504,7 @@ contract VedyxRiskHookTest is Test, Deployers {
         });
         
         vm.prank(address(manager));
-        vm.expectRevert("VedyxRiskHook: Address blocked from adding liquidity");
+        vm.expectRevert(abi.encodeWithSelector(VedyxRiskHook.AddressBlockedFromAddingLiquidity.selector, highRiskUser));
         hook.beforeAddLiquidity(highRiskUser, testPoolKey, params, "");
     }
     
@@ -566,7 +566,7 @@ contract VedyxRiskHookTest is Test, Deployers {
         });
         
         vm.prank(address(manager));
-        vm.expectRevert("VedyxRiskHook: Address blocked from removing liquidity");
+        vm.expectRevert(abi.encodeWithSelector(VedyxRiskHook.AddressBlockedFromRemovingLiquidity.selector, lowRiskUser));
         hook.beforeRemoveLiquidity(lowRiskUser, testPoolKey, params, "");
     }
     
@@ -579,7 +579,7 @@ contract VedyxRiskHookTest is Test, Deployers {
         });
         
         vm.prank(address(manager));
-        vm.expectRevert("VedyxRiskHook: Address blocked from removing liquidity");
+        vm.expectRevert(abi.encodeWithSelector(VedyxRiskHook.AddressBlockedFromRemovingLiquidity.selector, mediumRiskUser));
         hook.beforeRemoveLiquidity(mediumRiskUser, testPoolKey, params, "");
     }
     
@@ -595,7 +595,7 @@ contract VedyxRiskHookTest is Test, Deployers {
         emit LiquidityBlocked(highRiskUser, false, IVedyxRiskEngine.RiskLevel.CRITICAL);
         
         vm.prank(address(manager));
-        vm.expectRevert("VedyxRiskHook: Address blocked from removing liquidity");
+        vm.expectRevert(abi.encodeWithSelector(VedyxRiskHook.AddressBlockedFromRemovingLiquidity.selector, highRiskUser));
         hook.beforeRemoveLiquidity(highRiskUser, testPoolKey, params, "");
     }
     
@@ -608,7 +608,7 @@ contract VedyxRiskHookTest is Test, Deployers {
         });
         
         vm.prank(address(manager));
-        vm.expectRevert("VedyxRiskHook: Address blocked from removing liquidity");
+        vm.expectRevert(abi.encodeWithSelector(VedyxRiskHook.AddressBlockedFromRemovingLiquidity.selector, criticalRiskUser));
         hook.beforeRemoveLiquidity(criticalRiskUser, testPoolKey, params, "");
     }
     
@@ -808,12 +808,12 @@ contract VedyxRiskHookTest is Test, Deployers {
         
         // Low risk user is blocked (HIGH risk with 1 incident)
         vm.prank(address(manager));
-        vm.expectRevert("HIGH risk level - address blocked");
+        vm.expectRevert(abi.encodeWithSelector(VedyxRiskHook.AddressBlockedFromSwap.selector, lowRiskUser, "HIGH risk level - address blocked"));
         hook.beforeSwap(lowRiskUser, testPoolKey, params, "");
         
         // High risk user is blocked (CRITICAL with 5 incidents)
         vm.prank(address(manager));
-        vm.expectRevert("CRITICAL risk level - address blocked");
+        vm.expectRevert(abi.encodeWithSelector(VedyxRiskHook.AddressBlockedFromSwap.selector, highRiskUser, "CRITICAL risk level - address blocked"));
         hook.beforeSwap(highRiskUser, testPoolKey, params, "");
     }
     
@@ -842,12 +842,12 @@ contract VedyxRiskHookTest is Test, Deployers {
         
         // Medium risk user blocked from adding (CRITICAL with 3 incidents)
         vm.prank(address(manager));
-        vm.expectRevert("VedyxRiskHook: Address blocked from adding liquidity");
+        vm.expectRevert(abi.encodeWithSelector(VedyxRiskHook.AddressBlockedFromAddingLiquidity.selector, mediumRiskUser));
         hook.beforeAddLiquidity(mediumRiskUser, testPoolKey, addParams, "");
         
         // Also blocked from removing (CRITICAL risk)
         vm.prank(address(manager));
-        vm.expectRevert("VedyxRiskHook: Address blocked from removing liquidity");
+        vm.expectRevert(abi.encodeWithSelector(VedyxRiskHook.AddressBlockedFromRemovingLiquidity.selector, mediumRiskUser));
         hook.beforeRemoveLiquidity(mediumRiskUser, testPoolKey, removeParams, "");
     }
     
@@ -860,7 +860,7 @@ contract VedyxRiskHookTest is Test, Deployers {
         
         // Initially CRITICAL risk user is blocked
         vm.prank(address(manager));
-        vm.expectRevert("CRITICAL risk level - address blocked");
+        vm.expectRevert(abi.encodeWithSelector(VedyxRiskHook.AddressBlockedFromSwap.selector, highRiskUser, "CRITICAL risk level - address blocked"));
         hook.beforeSwap(highRiskUser, testPoolKey, params, "");
         
         // Disable blocking for CRITICAL risk

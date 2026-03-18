@@ -34,6 +34,11 @@ contract VedyxRiskHook is BaseTestHooks, IVedyxRiskHook, Ownable {
     error ZeroOwner();
     error OnlyPoolManager();
     error ZeroAddress();
+    error InvalidFeeConfig();
+    error InvalidHookConfig();
+    error AddressBlockedFromSwap(address user, string reason);
+    error AddressBlockedFromAddingLiquidity(address user);
+    error AddressBlockedFromRemovingLiquidity(address user);
     error FeeExceeds100Percent();
     error FeesNotAscending();
     error InvalidFeeRange();
@@ -167,7 +172,7 @@ contract VedyxRiskHook is BaseTestHooks, IVedyxRiskHook, Ownable {
         
         if (blocked) {
             emit SwapBlocked(user, riskLevel, riskEngine.getRiskScore(user));
-            revert(reason);
+            revert AddressBlockedFromSwap(user, reason);
         }
         
         // Calculate dynamic fee if enabled
@@ -226,7 +231,7 @@ contract VedyxRiskHook is BaseTestHooks, IVedyxRiskHook, Ownable {
         
         if (blocked) {
             emit LiquidityBlocked(user, true, riskLevel);
-            revert("VedyxRiskHook: Address blocked from adding liquidity");
+            revert AddressBlockedFromAddingLiquidity(user);
         }
         
         // Note: Dynamic LP fees would require pool initialization with DYNAMIC_FEE_FLAG
@@ -263,7 +268,7 @@ contract VedyxRiskHook is BaseTestHooks, IVedyxRiskHook, Ownable {
         
         if (blocked) {
             emit LiquidityBlocked(user, false, riskLevel);
-            revert("VedyxRiskHook: Address blocked from removing liquidity");
+            revert AddressBlockedFromRemovingLiquidity(user);
         }
         
         // Note: Dynamic LP fees would require pool initialization with DYNAMIC_FEE_FLAG
