@@ -8,7 +8,7 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 
 export default function Documentation() {
-  const githubReadmeUrl = "https://github.com/iHarishKumar/vedyx-protocol/blob/main/README.md";
+  const githubReadmeUrl = "https://github.com/iHarishKumar/vedyx-network/blob/master/README.md";
 
   useEffect(() => {
     window.location.href = githubReadmeUrl;
