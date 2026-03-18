@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.0;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {VedyxVotingContract} from "../src/voting-contract/VedyxVotingContract.sol";
@@ -646,7 +646,9 @@ contract VedyxVotingContractTest is Test {
         vm.prank(user3);
         votingContract.castVote(votingId2, true);
 
-        vm.warp(block.timestamp + VOTING_DURATION + 1);
+        // Get voting2 end time and warp past it
+        (,, uint256 voting2EndTime,,,,,) = votingViews.getVotingDetails(votingId2);
+        vm.warp(voting2EndTime + 1);
 
         uint256 expectedReward = (feeCollected * 200) / 10000; // 2%
         address finalizer = makeAddr("finalizer");
@@ -1047,7 +1049,11 @@ contract VedyxVotingContractTest is Test {
         vm.prank(user2);
         votingContract.castVote(votingId2, false);
 
-        vm.warp(block.timestamp + VOTING_DURATION + 1);
+        // Get voting details to calculate proper end time
+        (,, uint256 voting2EndTime,,,,,) = votingViews.getVotingDetails(votingId2);
+        
+        // Advance time past the second voting period
+        vm.warp(voting2EndTime + 1);
         votingContract.finalizeVoting(votingId2);
 
         accuracy = votingViews.getVoterAccuracy(user1);

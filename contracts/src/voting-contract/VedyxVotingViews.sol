@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.0;
 
 import {VedyxTypes} from "./libraries/VedyxTypes.sol";
 import {VotingPowerLib} from "./libraries/VotingPowerLib.sol";
-import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 import {VedyxVotingContract} from "./VedyxVotingContract.sol";
 import {IVedyxVotingViews} from "./interfaces/IVedyxVotingViews.sol";
 

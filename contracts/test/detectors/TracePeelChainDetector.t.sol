@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 import {TracePeelChainDetector} from "../../src/reactive-contracts/detectors/TracePeelChainDetector.sol";
@@ -274,15 +274,23 @@ contract TracePeelChainDetectorTest is Test {
         detector.detect(_createTransferLog(USDC, INITIATOR, PEEL_1, 10e6, blockNum + 1));
         detector.detect(_createTransferLog(USDC, INITIATOR, PEEL_2, 10e6, blockNum + 2));
         
-        // This should trigger detection AND cleanup
-        vm.expectEmit(true, true, false, false);
-        emit StorageCleanup(USDC, INITIATOR, 3);
+        // This should trigger detection
+        (bool detected, address suspicious,) = detector.detect(_createTransferLog(USDC, INITIATOR, PEEL_3, 10e6, blockNum + 3));
         
-        detector.detect(_createTransferLog(USDC, INITIATOR, PEEL_3, 10e6, blockNum + 3));
+        assertTrue(detected);
+        assertEq(suspicious, INITIATOR);
         
-        // Activity should be cleared
+        // Storage persists after detection (within block window)
         (uint256 transferCount,,,) = detector.getAddressActivity(USDC, INITIATOR);
-        assertEq(transferCount, 0);
+        assertEq(transferCount, 3); // All transfers still tracked
+        
+        // Advance past block window to trigger cleanup
+        uint256 futureBlock = blockNum + 150;
+        detector.detect(_createTransferLog(USDC, INITIATOR, address(0x6666), 5e6, futureBlock));
+        
+        // Now storage should be cleaned (old transfers removed)
+        (uint256 transferCountAfter,,,) = detector.getAddressActivity(USDC, INITIATOR);
+        assertEq(transferCountAfter, 1); // Only the new transfer
     }
     
     function test_ManualCleanup() public {

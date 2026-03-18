@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.0;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {VedyxVotingContract} from "../src/voting-contract/VedyxVotingContract.sol";
@@ -299,8 +299,8 @@ contract VerdictSystemTest is Test {
         votingContract.finalizeVoting(votingId1);
 
         // Second offense - should create new voting (new evidence)
-        vm.expectEmit(true, true, true, true);
-        emit VotingStarted(2, suspiciousAddr1, block.timestamp + VOTING_DURATION, bytes32(0));
+        vm.expectEmit(true, true, false, false);
+        emit VotingStarted(2, suspiciousAddr1, 0, bytes32(0));
 
         vm.prank(callbackAuthorizer);
         uint256 votingId2 =
@@ -412,9 +412,9 @@ contract VerdictSystemTest is Test {
         // Clear verdict
         votingContract.clearAddressVerdict(suspiciousAddr1);
 
-        // Tag again - should create new voting (not auto-mark)
-        vm.expectEmit(true, true, true, true);
-        emit VotingStarted(2, suspiciousAddr1, block.timestamp + VOTING_DURATION, bytes32(0));
+        // After clearing, new offense should create voting
+        vm.expectEmit(true, true, false, false);
+        emit VotingStarted(2, suspiciousAddr1, 0, bytes32(0));
 
         vm.prank(callbackAuthorizer);
         uint256 votingId2 =

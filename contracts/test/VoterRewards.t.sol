@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.0;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {VedyxVotingContract} from "../src/voting-contract/VedyxVotingContract.sol";
@@ -359,7 +359,11 @@ contract VoterRewardsTest is Test {
         user1StakeBefore = stakeUser1Before.stakedAmount;
         user2StakeBefore = stakeUser2Before.stakedAmount;
 
-        vm.warp(block.timestamp + VOTING_DURATION + 1);
+        // Get voting details to calculate proper end time
+        (,, uint256 voting2EndTime,,,,,) = votingViews.getVotingDetails(votingId2);
+        
+        // Warp past the second voting's end time
+        vm.warp(voting2EndTime + 1);
         votingContract.finalizeVoting(votingId2);
 
         uint256 user1StakeAfter;
