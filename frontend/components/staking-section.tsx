@@ -244,13 +244,22 @@ export function StakingSection() {
                   Max
                 </Button>
               </div>
+              {stakeAmount && parseFloat(stakeAmount) > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {parseFloat(allowance) >= parseFloat(stakeAmount) ? (
+                    <span className="text-green-600">✓ Tokens already approved for this amount</span>
+                  ) : (
+                    <span className="text-yellow-600">⚠️ Approval required for {parseFloat(stakeAmount).toFixed(2)} tokens</span>
+                  )}
+                </p>
+              )}
             </div>
 
-            {parseFloat(allowance) < parseFloat(stakeAmount || "0") && (
+            {stakeAmount && parseFloat(stakeAmount) > 0 && parseFloat(allowance) < parseFloat(stakeAmount) && (
               <Button
                 className="w-full"
                 onClick={handleApprove}
-                disabled={approving || !stakeAmount}
+                disabled={approving}
               >
                 {approving ? (
                   <>
@@ -266,7 +275,7 @@ export function StakingSection() {
             <Button
               className="w-full"
               onClick={handleStake}
-              disabled={staking || !stakeAmount || parseFloat(allowance) < parseFloat(stakeAmount || "0")}
+              disabled={staking || !stakeAmount || parseFloat(stakeAmount) <= 0 || parseFloat(allowance) < parseFloat(stakeAmount || "0")}
             >
               {staking ? (
                 <>
