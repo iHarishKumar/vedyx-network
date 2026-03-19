@@ -7,6 +7,7 @@ set -e
 
 # Configuration
 VEDYX_RSC="0x4A85DFB50782BBd8Fc3f94AbF2A6C585070B1420"
+TOKEN_REG="0x4C2b7C2EcA1965f18430d230a22AA8aA8e7F9efc"
 ORIGIN_CHAIN_ID="1301"
 TRANSFER_TOPIC="0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 RPC_URL="https://lasna-rpc.rnk.dev/"
@@ -65,6 +66,27 @@ for i in "${!TOKENS[@]}"; do
         --account "$ACCOUNT"
     
     echo -e "${GREEN}✓ Subscribed to ${NAME}${NC}"
+    echo ""
+
+    echo -e "${BLUE}Adding to Token Registry..."
+    
+    # Fetch token decimals and symbol from the ERC20 contract on origin chain
+    ORIGIN_RPC="https://sepolia.unichain.org"
+    DECIMALS=$(cast call "$TOKEN" "decimals()(uint8)" --rpc-url "$ORIGIN_RPC")
+    SYMBOL=$(cast call "$TOKEN" "symbol()(string)" --rpc-url "$ORIGIN_RPC")
+    
+    echo -e "  Decimals: ${YELLOW}${DECIMALS}${NC}"
+    echo -e "  Symbol: ${YELLOW}${SYMBOL}${NC}"
+    
+    cast send "$TOKEN_REG" \
+        "configureToken(address,uint8,string)" \
+        "$TOKEN" \
+        "$DECIMALS" \
+        "$SYMBOL" \
+        --rpc-url "$RPC_URL" \
+        --account "$ACCOUNT"
+    
+    echo -e "${GREEN}✓ Added ${SYMBOL} to Token Registry${NC}"
     echo ""
 done
 
