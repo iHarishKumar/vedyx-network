@@ -117,9 +117,16 @@ export function VotingDetailsDialog({
   }
 
   function calculateVoterCount(votingPower: string): number {
-    const MINIMUM_STAKE = BigInt("100000000000000000000"); // 100e18
-    const power = BigInt(votingPower);
-    return Number(power / MINIMUM_STAKE);
+    if (!votingPower || votingPower === "0") return 0;
+    
+    try {
+      const MINIMUM_STAKE = BigInt("100000000000000000000"); // 100e18
+      const power = BigInt(votingPower);
+      return Number(power / MINIMUM_STAKE);
+    } catch (error) {
+      console.error("Error calculating voter count:", error, "votingPower:", votingPower);
+      return 0;
+    }
   }
 
   function getStatusBadge(voting: VotingDetail) {
