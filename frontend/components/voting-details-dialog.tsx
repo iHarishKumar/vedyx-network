@@ -116,6 +116,12 @@ export function VotingDetailsDialog({
     return formatDistanceToNow(date, { addSuffix: true });
   }
 
+  function calculateVoterCount(votingPower: string): number {
+    const MINIMUM_STAKE = BigInt("100000000000000000000"); // 100e18
+    const power = BigInt(votingPower);
+    return Number(power / MINIMUM_STAKE);
+  }
+
   function getStatusBadge(voting: VotingDetail) {
     if (!voting.finalized) {
       return (
@@ -214,10 +220,10 @@ export function VotingDetailsDialog({
                     </TableCell>
                     <TableCell>{getStatusBadge(voting)}</TableCell>
                     <TableCell className="text-green-600 font-semibold">
-                      {voting.votesFor}
+                      {calculateVoterCount(voting.votesFor)}
                     </TableCell>
                     <TableCell className="text-red-600 font-semibold">
-                      {voting.votesAgainst}
+                      {calculateVoterCount(voting.votesAgainst)}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {formatTimestamp(voting.createdAt)}
