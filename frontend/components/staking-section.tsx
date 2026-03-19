@@ -58,6 +58,11 @@ export function StakingSection() {
     }
   }
 
+  async function refreshDataAfterTx() {
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await loadData();
+  }
+
   async function handleApprove() {
     if (!stakeAmount || parseFloat(stakeAmount) <= 0) {
       alert("Please enter a valid amount");
@@ -69,7 +74,7 @@ export function StakingSection() {
       const result = await approveToken(stakeAmount);
       if (result.success) {
         alert(`Approval successful! Transaction: ${result.txHash}`);
-        await loadData();
+        await refreshDataAfterTx();
       } else {
         alert(`Approval failed: ${result.error}`);
       }
@@ -97,7 +102,7 @@ export function StakingSection() {
       if (result.success) {
         alert(`Staking successful! Transaction: ${result.txHash}\n\nView on explorer: https://sepolia.uniscan.xyz/tx/${result.txHash}`);
         setStakeAmount("");
-        await loadData();
+        await refreshDataAfterTx();
       } else {
         alert(`Staking failed: ${result.error}`);
       }
@@ -120,7 +125,7 @@ export function StakingSection() {
       if (result.success) {
         alert(`Unstaking successful! Transaction: ${result.txHash}\n\nView on explorer: https://sepolia.uniscan.xyz/tx/${result.txHash}`);
         setUnstakeAmount("");
-        await loadData();
+        await refreshDataAfterTx();
       } else {
         alert(`Unstaking failed: ${result.error}`);
       }
@@ -164,7 +169,7 @@ export function StakingSection() {
             <div className="flex items-center gap-2">
               <Lock className="h-5 w-5 text-primary" />
               <span className="text-2xl font-bold">
-                {loading ? "..." : stakerInfo ? formatUnits(stakerInfo.stakedAmount, 18) : "0"}
+                {loading ? "..." : stakerInfo ? parseFloat(formatUnits(stakerInfo.stakedAmount, 18)).toFixed(2) : "0"}
               </span>
               <span className="text-sm text-muted-foreground">tokens</span>
             </div>
