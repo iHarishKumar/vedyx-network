@@ -1,0 +1,12 @@
+{
+  "network": "lasna-testnet",
+  "chainId": 5318007,
+  "contracts": {
+    "tokenRegistry": "0xd0c283b6949620eA0BF99E5237dA65E5D46671ED",
+    "largeTransferDetector": "0xEaa135fe37126146FC571Bb430B388E837147D9e",
+    "mixerInteractionDetector": "0xE30473a1B31F6fEdA08cA9aE93F58C75beB3Ca91",
+    "tracePeelChainDetector": "0x141cec5e5D24686930f398210ead8DdeF1b2769b",
+    "vedyxExploitDetectorRSC": "0x56211723990ff8AA552Fba1F78d5260959b6cb45"
+  },
+  "timestamp": 1773940556
+}
