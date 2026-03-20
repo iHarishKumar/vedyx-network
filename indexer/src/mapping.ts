@@ -160,9 +160,9 @@ export function handleVoteCast(event: VoteCast): void {
 
   voting.totalVotingPower = voting.totalVotingPower.plus(event.params.votingPower);
   if (event.params.votedFor) {
-    voting.votesFor = voting.votesFor.plus(event.params.votingPower);
+    voting.votesFor = voting.votesFor.plus(BigInt.fromI32(1));
   } else {
-    voting.votesAgainst = voting.votesAgainst.plus(event.params.votingPower);
+    voting.votesAgainst = voting.votesAgainst.plus(BigInt.fromI32(1));
   }
   voting.save();
 
