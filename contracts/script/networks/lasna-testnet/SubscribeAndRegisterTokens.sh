@@ -6,8 +6,8 @@
 set -e
 
 # Configuration
-VEDYX_RSC="0x4A85DFB50782BBd8Fc3f94AbF2A6C585070B1420"
-TOKEN_REG="0x4C2b7C2EcA1965f18430d230a22AA8aA8e7F9efc"
+VEDYX_RSC="0x56211723990ff8AA552Fba1F78d5260959b6cb45"
+TOKEN_REG="0xd0c283b6949620eA0BF99E5237dA65E5D46671ED"
 ORIGIN_CHAIN_ID="1301"
 TRANSFER_TOPIC="0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 RPC_URL="https://lasna-rpc.rnk.dev/"
@@ -24,6 +24,7 @@ echo -e "${BLUE}Subscribe VedyxRSC to Token Events${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo -e "VedyxRSC: ${GREEN}${VEDYX_RSC}${NC}"
 echo -e "Origin Chain: ${GREEN}${ORIGIN_CHAIN_ID}${NC}"
+echo -e "TokenRegistry: ${GREEN}${TOKEN_REG}${NC}"
 echo ""
 
 # Read tokens from deployment file

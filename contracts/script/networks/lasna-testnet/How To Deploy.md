@@ -32,7 +32,7 @@ forge script script/networks/lasna-testnet/03_DeployVedyxRSC.s.sol:DeployVedyxRS
 
 ### 4. Subscribe to Token Events
 ```bash
-./script/networks/lasna-testnet/SubscribeTokens.sh
+./script/networks/lasna-testnet/SubscribeAndRegisterTokens.sh
 ```
 
 ## Prerequisites
