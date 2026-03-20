@@ -14,6 +14,14 @@ export function getDetectorName(detectorId: Bytes): string {
   if (hash == "0x6b3d01054d791087086e711a499e5ef7f3b91cd1e251a821a0e50578979b6bbf") {
     return "MIXER_INTERACTION_DETECTOR_V1";
   }
+
+  if(hash == "0x9373c3035f6afcc2f890d08622b3cf7e58aa746ca02ece5e9331eb5a347e1805") {
+    return "LARGE_TRANSFER_DETECTOR_V1"
+  }
+
+  if(hash == "0x9d08ac44fe748ef45252504a7fb89f31a5c1e21d864df480cd7b0f78b816596b") {
+    return "TRACE_PEEL_CHAIN_DETECTOR_V1"
+  }
   
   // Add more detector mappings here as they are deployed
   // Example:
