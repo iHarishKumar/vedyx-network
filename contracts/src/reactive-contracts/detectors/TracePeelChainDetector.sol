@@ -5,6 +5,7 @@ import {IReactive} from "reactive-lib/interfaces/IReactive.sol";
 import {IAttackVectorDetector} from "../interfaces/IAttackVectorDetector.sol";
 import {Ownable} from "@openzeppelin-contracts/contracts/access/Ownable.sol";
 import {TokenRegistry} from "./TokenRegistry.sol";
+import {AbstractReactive} from "reactive-lib/abstract-base/AbstractReactive.sol";
 
 error InvalidThreshold();
 error InvalidTimeWindow();
@@ -16,13 +17,13 @@ error InvalidPercentageRange();
  * @notice Detects trace peel chain patterns where funds are systematically split
  *         across multiple addresses to obfuscate transaction trails
  * @dev Implements IAttackVectorDetector with STATEFUL pattern tracking
- * 
+ *
  * ─── Detection Strategy ──────────────────────────────────────────────────
  * A peel chain is characterized by:
  * 1. Sequential transfers where a portion of funds is "peeled off" to different addresses
  * 2. Remaining funds continue to the next address in the chain
  * 3. Pattern repeats multiple times to obfuscate the trail
- * 
+ *
  * Example Peel Chain:
  * Address A: 100 ETH
  *   → Transfer 10 ETH to Address B (peel)
@@ -30,14 +31,14 @@ error InvalidPercentageRange();
  * Address C: 90 ETH
  *   → Transfer 10 ETH to Address D (peel)
  *   → Transfer 80 ETH to Address E (continue chain)
- * 
+ *
  * ─── State Tracking Approach ─────────────────────────────────────────────
  * This detector maintains on-chain state to track:
  * - Recent outgoing transfers from each address
  * - Transfer amounts and recipients
  * - Block numbers for time-based analysis
  * - Detected peel patterns and chain depth
- * 
+ *
  * ─── Storage Cleanup Mechanisms ──────────────────────────────────────────
  * To minimize gas costs:
  * - Transfers older than blockWindow are automatically pruned
@@ -45,60 +46,73 @@ error InvalidPercentageRange();
  * - Only suspicious patterns are retained for callback
  * - Non-suspicious addresses are cleaned after analysis
  */
-contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
+contract TracePeelChainDetector is
+    AbstractReactive,
+    IAttackVectorDetector,
+    Ownable
+{
     // ─── Constants ────────────────────────────────────────────────────────
-    uint256 private constant TOPIC_TRANSFER = 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef;
-    
-    bytes32 private constant DETECTOR_ID = keccak256("TRACE_PEEL_CHAIN_DETECTOR_V1");
-    
+    uint256 private constant TOPIC_TRANSFER =
+        0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef;
+
+    bytes32 private constant DETECTOR_ID =
+        keccak256("TRACE_PEEL_CHAIN_DETECTOR_V1");
+
+    /// @notice Gas limit for callback execution on the destination chain
+    uint64 private constant GAS_LIMIT = 1000000;
+
+    address public callbackContract; // destination-chain registry address
+    uint256 public destinationChainId;
+
     // Default: 5-30% peel range (typical obfuscation pattern)
-    uint256 private constant DEFAULT_MIN_PEEL_PERCENTAGE = 500;  // 5%
+    uint256 private constant DEFAULT_MIN_PEEL_PERCENTAGE = 500; // 5%
     uint256 private constant DEFAULT_MAX_PEEL_PERCENTAGE = 3000; // 30%
-    uint256 private constant PERCENTAGE_DENOMINATOR = 10000;     // 100%
-    
+    uint256 private constant PERCENTAGE_DENOMINATOR = 10000; // 100%
+
     // Default: detect if 3+ peels occur within 100 blocks
     uint256 private constant DEFAULT_MIN_PEEL_COUNT = 3;
     uint256 private constant DEFAULT_BLOCK_WINDOW = 100;
-    
+
     // Maximum transfers to track per address (prevent DoS)
     uint256 private constant MAX_TRANSFERS_PER_ADDRESS = 20;
-    
+
     // ─── State Tracking Structures ────────────────────────────────────────
-    
+
     /// @notice Represents a single outgoing transfer from an address
     struct Transfer {
-        address recipient;      // Where funds went
-        uint256 amount;         // Transfer amount
-        uint256 blockNumber;    // When it occurred
-        bool isPeel;            // True if this is a small peel, false if continuation
+        address recipient; // Where funds went
+        uint256 amount; // Transfer amount
+        uint256 blockNumber; // When it occurred
+        bool isPeel; // True if this is a small peel, false if continuation
     }
-    
+
     /// @notice Tracks transfer activity for an address
     struct AddressActivity {
-        Transfer[] outgoingTransfers;  // Recent outgoing transfers
-        uint256 lastIncomingAmount;    // Last received amount (to calculate peel %)
-        uint256 lastIncomingBlock;     // Block of last incoming transfer
-        uint256 totalOutgoing;         // Sum of outgoing transfers
-        uint8 peelCount;               // Number of detected peels
-        bool hasPattern;               // True if peel pattern detected
+        Transfer[] outgoingTransfers; // Recent outgoing transfers
+        uint256 lastIncomingAmount; // Last received amount (to calculate peel %)
+        uint256 lastIncomingBlock; // Block of last incoming transfer
+        uint256 totalOutgoing; // Sum of outgoing transfers
+        uint8 peelCount; // Number of detected peels
+        bool hasPattern; // True if peel pattern detected
     }
-    
+
     // ─── State Variables ──────────────────────────────────────────────────
     bool public active;
-    
+
     /// @notice Reference to shared TokenRegistry
     TokenRegistry public immutable registry;
-    
+
     // Packed configuration parameters
     uint64 public minPeelPercentage;
     uint64 public maxPeelPercentage;
     uint64 public minPeelCount;
     uint64 public blockWindow;
-    
+
     /// @notice Tracks transfer activity per address per token
     /// @dev Mapping: token => address => activity
-    mapping(address => mapping(address => AddressActivity)) private addressActivity;
-    
+    mapping(address => mapping(address => AddressActivity))
+        private addressActivity;
+
     // ─── Events ───────────────────────────────────────────────────────────
     event PeelChainDetected(
         address indexed suspiciousAddress,
@@ -108,28 +122,32 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
         uint256 chainDepth,
         uint256 averagePeelPercentage
     );
-    
+
     event DetectorConfigured(
         uint64 minPeelPercentage,
         uint64 maxPeelPercentage,
         uint64 minPeelCount,
         uint64 blockWindow
     );
-    
+
     event StorageCleanup(
         address indexed token,
         address indexed addr,
         uint256 transfersRemoved
     );
-    
+
     event DetectorActivated();
     event DetectorDeactivated();
-    
+
     // ─── Constructor ──────────────────────────────────────────────────
     /**
      * @param _registry Address of the shared TokenRegistry
      */
-    constructor(address _registry) Ownable() {
+    constructor(
+        address _registry,
+        address _callbackContract_,
+        uint256 _detsinationChainId_
+    ) payable Ownable() {
         if (_registry == address(0)) revert InvalidRegistryAddress();
         registry = TokenRegistry(_registry);
         active = true;
@@ -137,63 +155,73 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
         maxPeelPercentage = uint64(DEFAULT_MAX_PEEL_PERCENTAGE);
         minPeelCount = uint64(DEFAULT_MIN_PEEL_COUNT);
         blockWindow = uint64(DEFAULT_BLOCK_WINDOW);
+        callbackContract = _callbackContract_;
+        destinationChainId = _detsinationChainId_;
     }
-    
+
     // ─── IAttackVectorDetector Implementation ─────────────────────────────
     /**
      * @notice Analyzes a log record for trace peel chain patterns
      * @dev STATEFUL detection - tracks transfer patterns over time
      * @param log The log record to analyze
-     * @return detected Whether a threat was detected
-     * @return suspiciousAddress The address flagged as suspicious
-     * @return payload The encoded callback payload
      */
-    function detect(IReactive.LogRecord calldata log)
-        external
-        override
-        returns (bool detected, address suspiciousAddress, bytes memory payload)
-    {
+    function react(IReactive.LogRecord calldata log) external override vmOnly {
         if (!active) {
-            return (false, address(0), "");
+            return;
         }
-        
+
         if (log.topic_0 != TOPIC_TRANSFER) {
-            return (false, address(0), "");
+            return;
         }
-        
+
         if (log.data.length < 32) {
-            return (false, address(0), "");
+            return;
         }
-        
+
         address from = address(uint160(log.topic_1));
         address to = address(uint160(log.topic_2));
         uint256 value = abi.decode(log.data, (uint256));
         address token = log._contract;
-        
+
         if (value == 0 || from == address(0) || to == address(0)) {
-            return (false, address(0), "");
+            return;
         }
-        
+
         // Step 1: Update incoming transfer for recipient
         _recordIncomingTransfer(token, to, value, log.block_number);
-        
+
         // Step 2: Analyze sender's outgoing pattern
-        bool isPattern = _analyzeAndRecordOutgoing(token, from, to, value, log.block_number);
-        
+        bool isPattern = _analyzeAndRecordOutgoing(
+            token,
+            from,
+            to,
+            value,
+            log.block_number
+        );
+
         // Step 3: Cleanup old data
         _cleanupOldTransfers(token, from, log.block_number);
-        
+
         if (isPattern) {
-            payload = _createPayload(from, token, value, log.chain_id, log.tx_hash);
+            bytes memory payload = _createPayload(
+                from,
+                token,
+                value,
+                log.chain_id,
+                log.tx_hash
+            );
             _emitDetectionEvent(token, from, log.chain_id);
             // Lets not cleanup the address as we need it for tracing in the FE
             // _cleanupAddress(token, from);
-            return (true, from, payload);
+            emit Callback(
+                destinationChainId,
+                callbackContract,
+                GAS_LIMIT,
+                payload
+            );
         }
-        
-        return (false, address(0), "");
     }
-    
+
     /**
      * @notice Returns the event topic_0 that this detector monitors
      * @return The Transfer event signature hash
@@ -201,7 +229,7 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
     function getMonitoredTopic() external pure override returns (uint256) {
         return TOPIC_TRANSFER;
     }
-    
+
     /**
      * @notice Returns a unique identifier for this detector
      * @return The detector's unique identifier
@@ -209,8 +237,7 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
     function getDetectorId() external pure override returns (bytes32) {
         return DETECTOR_ID;
     }
-    
-    
+
     /**
      * @notice Returns whether this detector is active
      * @return True if the detector is active
@@ -218,9 +245,9 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
     function isActive() external view override returns (bool) {
         return active;
     }
-    
+
     // ─── Internal State Management Functions ──────────────────────────────
-    
+
     /**
      * @notice Records an incoming transfer for an address
      * @dev Updates the lastIncomingAmount to calculate peel percentages
@@ -235,7 +262,7 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
         activity.lastIncomingAmount = amount;
         activity.lastIncomingBlock = blockNumber;
     }
-    
+
     /**
      * @notice Analyzes outgoing transfer and detects peel chain patterns
      * @dev Core pattern detection logic - checks for multiple peels
@@ -249,29 +276,31 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
         uint256 blockNumber
     ) internal returns (bool) {
         AddressActivity storage activity = addressActivity[token][from];
-        
+
         // Check if we have incoming amount to calculate percentage
         if (activity.lastIncomingAmount == 0) {
             // First outgoing transfer, just record it
             _addTransfer(activity, to, amount, blockNumber, false);
             return false;
         }
-        
+
         // Calculate what percentage of incoming amount this transfer represents
-        uint256 percentage = (amount * PERCENTAGE_DENOMINATOR) / activity.lastIncomingAmount;
-        
+        uint256 percentage = (amount * PERCENTAGE_DENOMINATOR) /
+            activity.lastIncomingAmount;
+
         // Determine if this is a peel or continuation
-        bool isPeel = (percentage >= minPeelPercentage && percentage <= maxPeelPercentage);
-        
+        bool isPeel = (percentage >= minPeelPercentage &&
+            percentage <= maxPeelPercentage);
+
         // Add transfer to history
         _addTransfer(activity, to, amount, blockNumber, isPeel);
-        
+
         if (isPeel) {
             activity.peelCount++;
         }
-        
+
         activity.totalOutgoing += amount;
-        
+
         // Check if pattern threshold reached
         if (activity.peelCount >= minPeelCount) {
             // Check if all peels occurred within block window
@@ -280,10 +309,10 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
                 return true;
             }
         }
-        
+
         return false;
     }
-    
+
     /**
      * @notice Adds a transfer to address activity history
      * @dev Prevents DoS by limiting max transfers tracked
@@ -300,29 +329,31 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
             // Remove oldest transfer
             _removeOldestTransfer(activity);
         }
-        
-        activity.outgoingTransfers.push(Transfer({
-            recipient: recipient,
-            amount: amount,
-            blockNumber: blockNumber,
-            isPeel: isPeel
-        }));
+
+        activity.outgoingTransfers.push(
+            Transfer({
+                recipient: recipient,
+                amount: amount,
+                blockNumber: blockNumber,
+                isPeel: isPeel
+            })
+        );
     }
-    
+
     /**
      * @notice Removes the oldest transfer from history
      * @dev Used to prevent DoS and manage storage costs
      */
     function _removeOldestTransfer(AddressActivity storage activity) internal {
         if (activity.outgoingTransfers.length == 0) return;
-        
+
         // Shift all elements left by one
         for (uint256 i = 0; i < activity.outgoingTransfers.length - 1; i++) {
             activity.outgoingTransfers[i] = activity.outgoingTransfers[i + 1];
         }
         activity.outgoingTransfers.pop();
     }
-    
+
     /**
      * @notice Checks if all peels occurred within the configured block window
      * @dev Temporal analysis to confirm pattern timing
@@ -331,10 +362,10 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
         AddressActivity storage activity
     ) internal view returns (bool) {
         if (activity.outgoingTransfers.length == 0) return false;
-        
+
         uint256 oldestBlock = type(uint256).max;
         uint256 newestBlock = 0;
-        
+
         // Find the block range of peel transfers
         for (uint256 i = 0; i < activity.outgoingTransfers.length; i++) {
             if (activity.outgoingTransfers[i].isPeel) {
@@ -343,11 +374,11 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
                 if (blockNum > newestBlock) newestBlock = blockNum;
             }
         }
-        
+
         // Check if peels span within block window
         return (newestBlock - oldestBlock) <= blockWindow;
     }
-    
+
     /**
      * @notice Cleans up old transfers outside the block window
      * @dev Automatic storage cleanup to minimize gas costs
@@ -358,12 +389,14 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
         uint256 currentBlock
     ) internal {
         AddressActivity storage activity = addressActivity[token][addr];
-        
+
         if (activity.outgoingTransfers.length == 0) return;
-        
-        uint256 cutoffBlock = currentBlock > blockWindow ? currentBlock - blockWindow : 0;
+
+        uint256 cutoffBlock = currentBlock > blockWindow
+            ? currentBlock - blockWindow
+            : 0;
         uint256 removeCount = 0;
-        
+
         // Count how many old transfers to remove
         for (uint256 i = 0; i < activity.outgoingTransfers.length; i++) {
             if (activity.outgoingTransfers[i].blockNumber < cutoffBlock) {
@@ -372,39 +405,45 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
                 break; // Transfers are ordered by time
             }
         }
-        
+
         if (removeCount > 0) {
             // Shift remaining transfers
-            for (uint256 i = 0; i < activity.outgoingTransfers.length - removeCount; i++) {
-                activity.outgoingTransfers[i] = activity.outgoingTransfers[i + removeCount];
+            for (
+                uint256 i = 0;
+                i < activity.outgoingTransfers.length - removeCount;
+                i++
+            ) {
+                activity.outgoingTransfers[i] = activity.outgoingTransfers[
+                    i + removeCount
+                ];
             }
-            
+
             // Remove old entries
             for (uint256 i = 0; i < removeCount; i++) {
                 activity.outgoingTransfers.pop();
             }
-            
+
             emit StorageCleanup(token, addr, removeCount);
         }
     }
-    
+
     /**
      * @notice Completely cleans up address activity after detection
      * @dev Called after pattern is detected and reported
      */
     function _cleanupAddress(address token, address addr) internal {
         AddressActivity storage activity = addressActivity[token][addr];
-        
+
         uint256 transferCount = activity.outgoingTransfers.length;
-        
+
         // Clear all transfers
         delete addressActivity[token][addr];
-        
+
         if (transferCount > 0) {
             emit StorageCleanup(token, addr, transferCount);
         }
     }
-    
+
     /**
      * @notice Calculates average peel percentage from activity
      * @dev Used for reporting in events
@@ -412,24 +451,27 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
     function _calculateAveragePeelPercentage(
         AddressActivity storage activity
     ) internal view returns (uint256) {
-        if (activity.peelCount == 0 || activity.lastIncomingAmount == 0) return 0;
-        
+        if (activity.peelCount == 0 || activity.lastIncomingAmount == 0)
+            return 0;
+
         uint256 totalPeelAmount = 0;
         uint256 peelCount = 0;
-        
+
         for (uint256 i = 0; i < activity.outgoingTransfers.length; i++) {
             if (activity.outgoingTransfers[i].isPeel) {
                 totalPeelAmount += activity.outgoingTransfers[i].amount;
                 peelCount++;
             }
         }
-        
+
         if (peelCount == 0) return 0;
-        
+
         uint256 avgPeelAmount = totalPeelAmount / peelCount;
-        return (avgPeelAmount * PERCENTAGE_DENOMINATOR) / activity.lastIncomingAmount;
+        return
+            (avgPeelAmount * PERCENTAGE_DENOMINATOR) /
+            activity.lastIncomingAmount;
     }
-    
+
     /**
      * @notice Creates the callback payload for detected peel chains
      * @dev Extracted to separate function to avoid stack too deep errors
@@ -442,19 +484,20 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
         uint256 txHash
     ) internal view returns (bytes memory) {
         uint8 decimals = registry.getDecimals(token);
-        
-        return abi.encodeWithSignature(
-            "tagSuspicious(address,uint256,address,uint256,uint256,uint256,bytes32)",
-            from,
-            chainId,
-            token,
-            value,
-            decimals,
-            txHash,
-            DETECTOR_ID
-        );
+
+        return
+            abi.encodeWithSignature(
+                "tagSuspicious(address,uint256,address,uint256,uint256,uint256,bytes32)",
+                from,
+                chainId,
+                token,
+                value,
+                decimals,
+                txHash,
+                DETECTOR_ID
+            );
     }
-    
+
     /**
      * @notice Emits the PeelChainDetected event
      * @dev Extracted to separate function to avoid stack too deep errors
@@ -466,7 +509,7 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
     ) internal {
         AddressActivity storage activity = addressActivity[token][from];
         uint256 avgPeelPercentage = _calculateAveragePeelPercentage(activity);
-        
+
         emit PeelChainDetected(
             from,
             token,
@@ -476,7 +519,7 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
             avgPeelPercentage
         );
     }
-    
+
     // ─── Configuration Management ─────────────────────────────────────────
     /**
      * @notice Configures the peel chain detection parameters
@@ -492,19 +535,24 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
         uint64 _blockWindow
     ) external onlyOwner {
         if (_minPeelPercentage >= _maxPeelPercentage) revert InvalidThreshold();
-        if (_maxPeelPercentage > PERCENTAGE_DENOMINATOR) revert InvalidThreshold();
+        if (_maxPeelPercentage > PERCENTAGE_DENOMINATOR)
+            revert InvalidThreshold();
         if (_minPeelCount == 0) revert InvalidThreshold();
         if (_blockWindow == 0) revert InvalidTimeWindow();
-        
+
         minPeelPercentage = _minPeelPercentage;
         maxPeelPercentage = _maxPeelPercentage;
         minPeelCount = _minPeelCount;
         blockWindow = _blockWindow;
-        
-        emit DetectorConfigured(_minPeelPercentage, _maxPeelPercentage, _minPeelCount, _blockWindow);
+
+        emit DetectorConfigured(
+            _minPeelPercentage,
+            _maxPeelPercentage,
+            _minPeelCount,
+            _blockWindow
+        );
     }
-    
-    
+
     /**
      * @notice Manual cleanup function for gas optimization
      * @dev Allows owner to cleanup specific addresses
@@ -512,7 +560,7 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
     function manualCleanup(address token, address addr) external onlyOwner {
         _cleanupAddress(token, addr);
     }
-    
+
     /**
      * @notice Returns activity data for an address (for testing/debugging)
      * @param token Token address
@@ -522,12 +570,19 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
      * @return hasPattern Whether pattern was detected
      * @return lastIncomingAmount Last incoming transfer amount
      */
-    function getAddressActivity(address token, address addr) external view returns (
-        uint256 transferCount,
-        uint8 peelCount,
-        bool hasPattern,
-        uint256 lastIncomingAmount
-    ) {
+    function getAddressActivity(
+        address token,
+        address addr
+    )
+        external
+        view
+        returns (
+            uint256 transferCount,
+            uint8 peelCount,
+            bool hasPattern,
+            uint256 lastIncomingAmount
+        )
+    {
         AddressActivity storage activity = addressActivity[token][addr];
         return (
             activity.outgoingTransfers.length,
@@ -536,7 +591,7 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
             activity.lastIncomingAmount
         );
     }
-    
+
     /**
      * @notice Activates the detector
      */
@@ -544,7 +599,7 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
         active = true;
         emit DetectorActivated();
     }
-    
+
     /**
      * @notice Deactivates the detector
      */
@@ -552,7 +607,7 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
         active = false;
         emit DetectorDeactivated();
     }
-    
+
     // ─── Getters ──────────────────────────────────────────────────────────
     /**
      * @notice Returns the detector configuration
@@ -561,14 +616,68 @@ contract TracePeelChainDetector is IAttackVectorDetector, Ownable {
      * @return _minPeelCount Minimum peel count
      * @return _blockWindow Block window
      */
-    function getConfiguration() external view returns (
-        uint256 _minPeelPercentage,
-        uint256 _maxPeelPercentage,
-        uint256 _minPeelCount,
-        uint256 _blockWindow
-    ) {
-        return (minPeelPercentage, maxPeelPercentage, minPeelCount, blockWindow);
+    function getConfiguration()
+        external
+        view
+        returns (
+            uint256 _minPeelPercentage,
+            uint256 _maxPeelPercentage,
+            uint256 _minPeelCount,
+            uint256 _blockWindow
+        )
+    {
+        return (
+            minPeelPercentage,
+            maxPeelPercentage,
+            minPeelCount,
+            blockWindow
+        );
     }
-    
-    
+
+    // ─── Subscription management ─────────────────────────────────────────
+    /**
+     * @notice Dynamically subscribes to events from a contract on a specified chain
+     * @dev Allows the contract owner to add new event subscriptions at runtime.
+     * Restricted to Reactive Network calls only.
+     * @param chain_id The chain ID where the contract to monitor is deployed
+     * @param contract_address The address of the contract to monitor
+     * @param topic_0 The event signature hash to subscribe to
+     */
+    function subscribe(
+        uint256 chain_id,
+        address contract_address,
+        uint256 topic_0
+    ) external rnOnly onlyOwner {
+        service.subscribe(
+            chain_id,
+            contract_address,
+            topic_0,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE
+        );
+    }
+
+    /**
+     * @notice Dynamically unsubscribes from events for a specific contract and event type
+     * @dev Allows the contract owner to remove event subscriptions at runtime.
+     * Restricted to Reactive Network calls only.
+     * @param chain_id The chain ID of the monitored contract
+     * @param contract_address The address of the monitored contract
+     * @param topic_0 The event signature hash to unsubscribe from
+     */
+    function unsubscribe(
+        uint256 chain_id,
+        address contract_address,
+        uint256 topic_0
+    ) external rnOnly onlyOwner {
+        service.unsubscribe(
+            chain_id,
+            contract_address,
+            topic_0,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE
+        );
+    }
 }

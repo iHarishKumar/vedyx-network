@@ -5,6 +5,7 @@ import {IReactive} from "reactive-lib/interfaces/IReactive.sol";
 import {IAttackVectorDetector} from "../interfaces/IAttackVectorDetector.sol";
 import {Ownable} from "@openzeppelin-contracts/contracts/access/Ownable.sol";
 import {TokenRegistry} from "./TokenRegistry.sol";
+import {AbstractReactive} from "reactive-lib/abstract-base/AbstractReactive.sol";
 
 error InvalidTokenAddress();
 error ThresholdMustBeGreaterThanZero();
@@ -16,17 +17,24 @@ error InvalidRegistryAddress();
  * @notice Detects unusually large token transfers that may indicate exploits
  * @dev Implements IAttackVectorDetector to plug into VedyxExploitDetectorRSC
  */
-contract LargeTransferDetector is IAttackVectorDetector, Ownable {
+contract LargeTransferDetector is AbstractReactive, IAttackVectorDetector, Ownable {
     // ─── Constants ────────────────────────────────────────────────────────
-    uint256 private constant TOPIC_TRANSFER = 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef;
+    uint256 private constant TOPIC_TRANSFER =
+        0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef;
 
     uint256 private constant DEFAULT_THRESHOLD = 1_000;
 
-    bytes32 private constant DETECTOR_ID = keccak256("LARGE_TRANSFER_DETECTOR_V1");
+    bytes32 private constant DETECTOR_ID =
+        keccak256("LARGE_TRANSFER_DETECTOR_V1");
+    /// @notice Gas limit for callback execution on the destination chain
+    uint64 private constant GAS_LIMIT = 1000000;
+
+    address public callbackContract; // destination-chain registry address
+    uint256 public destinationChainId;
 
     // ─── State ────────────────────────────────────────────────────────
     bool public active;
-    
+
     /// @notice Reference to shared TokenRegistry
     TokenRegistry public immutable registry;
 
@@ -35,7 +43,10 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
     mapping(address => bool) private tokenConfigured;
 
     // ─── Events ───────────────────────────────────────────────────────────
-    event TokenThresholdConfigured(address indexed tokenAddress, uint256 threshold);
+    event TokenThresholdConfigured(
+        address indexed tokenAddress,
+        uint256 threshold
+    );
     event DetectorActivated();
     event DetectorDeactivated();
 
@@ -43,36 +54,34 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
     /**
      * @param _registry Address of the shared TokenRegistry
      */
-    constructor(address _registry) Ownable() {
+    constructor(
+        address _registry,
+        address _callbackContract_,
+        uint256 _destinationChainId_
+    ) payable Ownable() {
         if (_registry == address(0)) revert InvalidRegistryAddress();
         registry = TokenRegistry(_registry);
         active = true;
+        callbackContract = _callbackContract_;
+        destinationChainId = _destinationChainId_;
     }
 
     // ─── IAttackVectorDetector Implementation ─────────────────────────────
     /**
      * @notice Analyzes a log record for large transfer patterns
      * @param log The log record to analyze
-     * @return detected Whether a threat was detected
-     * @return suspiciousAddress The address flagged as suspicious
-     * @return payload The encoded callback payload
      */
-    function detect(IReactive.LogRecord calldata log)
-        external
-        view
-        override
-        returns (bool detected, address suspiciousAddress, bytes memory payload)
-    {
+    function react(IReactive.LogRecord calldata log) external override vmOnly {
         if (!active) {
-            return (false, address(0), "");
+            return;
         }
 
         if (log.topic_0 != TOPIC_TRANSFER) {
-            return (false, address(0), "");
+            return;
         }
 
         if (log.data.length < 32) {
-            return (false, address(0), "");
+            return;
         }
 
         address from = address(uint160(log.topic_1));
@@ -85,15 +94,15 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
         }
 
         // Get threshold (detector-specific)
-        uint256 threshold = tokenConfigured[tokenContract] 
-            ? tokenThresholds[tokenContract] 
+        uint256 threshold = tokenConfigured[tokenContract]
+            ? tokenThresholds[tokenContract]
             : DEFAULT_THRESHOLD;
 
         if (value >= threshold) {
             // Get decimals from shared registry
             uint8 decimals = registry.getDecimals(tokenContract);
-            
-            payload = abi.encodeWithSignature(
+
+            bytes memory payload = abi.encodeWithSignature(
                 "tagSuspicious(address,uint256,address,uint256,uint256,uint256,bytes32)",
                 from,
                 log.chain_id,
@@ -104,10 +113,13 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
                 DETECTOR_ID
             );
 
-            return (true, from, payload);
+            emit Callback(
+                destinationChainId,
+                callbackContract,
+                GAS_LIMIT,
+                payload
+            );
         }
-
-        return (false, address(0), "");
     }
 
     /**
@@ -141,7 +153,10 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
      * @param tokenAddress The address of the token contract
      * @param threshold The threshold value in token's native decimals
      */
-    function configureTokenThreshold(address tokenAddress, uint256 threshold) external onlyOwner {
+    function configureTokenThreshold(
+        address tokenAddress,
+        uint256 threshold
+    ) external onlyOwner {
         if (tokenAddress == address(0)) revert InvalidTokenAddress();
         if (threshold == 0) revert ThresholdMustBeGreaterThanZero();
 
@@ -186,11 +201,9 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
      * @return threshold The configured threshold value
      * @return isConfigured Whether the token has a threshold configured
      */
-    function getTokenThreshold(address tokenAddress)
-        external
-        view
-        returns (uint256 threshold, bool isConfigured)
-    {
+    function getTokenThreshold(
+        address tokenAddress
+    ) external view returns (uint256 threshold, bool isConfigured) {
         return (tokenThresholds[tokenAddress], tokenConfigured[tokenAddress]);
     }
 
@@ -199,8 +212,60 @@ contract LargeTransferDetector is IAttackVectorDetector, Ownable {
      * @param tokenAddress The address of the token to query
      * @return The threshold that will be used for this token
      */
-    function getEffectiveThreshold(address tokenAddress) external view returns (uint256) {
-        return tokenConfigured[tokenAddress] ? tokenThresholds[tokenAddress] : DEFAULT_THRESHOLD;
+    function getEffectiveThreshold(
+        address tokenAddress
+    ) external view returns (uint256) {
+        return
+            tokenConfigured[tokenAddress]
+                ? tokenThresholds[tokenAddress]
+                : DEFAULT_THRESHOLD;
+    }
+
+    // ─── Subscription management ─────────────────────────────────────────
+    /**
+     * @notice Dynamically subscribes to events from a contract on a specified chain
+     * @dev Allows the contract owner to add new event subscriptions at runtime.
+     * Restricted to Reactive Network calls only.
+     * @param chain_id The chain ID where the contract to monitor is deployed
+     * @param contract_address The address of the contract to monitor
+     * @param topic_0 The event signature hash to subscribe to
+     */
+    function subscribe(
+        uint256 chain_id,
+        address contract_address,
+        uint256 topic_0
+    ) external rnOnly onlyOwner {
+        service.subscribe(
+            chain_id,
+            contract_address,
+            topic_0,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE
+        );
+    }
+
+    /**
+     * @notice Dynamically unsubscribes from events for a specific contract and event type
+     * @dev Allows the contract owner to remove event subscriptions at runtime.
+     * Restricted to Reactive Network calls only.
+     * @param chain_id The chain ID of the monitored contract
+     * @param contract_address The address of the monitored contract
+     * @param topic_0 The event signature hash to unsubscribe from
+     */
+    function unsubscribe(
+        uint256 chain_id,
+        address contract_address,
+        uint256 topic_0
+    ) external rnOnly onlyOwner {
+        service.unsubscribe(
+            chain_id,
+            contract_address,
+            topic_0,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE
+        );
     }
 
     /**

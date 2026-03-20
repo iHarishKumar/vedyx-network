@@ -766,4 +766,4 @@ function react(...) external vmOnly {
 
 **Agent Version**: 1.0.0  
 **Last Updated**: 2026-02-18  
-**Maintainer**: Vedyx Protocol Team
+**Maintainer**: Vedyx Network Team

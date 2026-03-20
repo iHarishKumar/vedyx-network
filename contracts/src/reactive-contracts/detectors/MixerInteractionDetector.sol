@@ -5,6 +5,7 @@ import {IReactive} from "reactive-lib/interfaces/IReactive.sol";
 import {IAttackVectorDetector} from "../interfaces/IAttackVectorDetector.sol";
 import {Ownable} from "@openzeppelin-contracts/contracts/access/Ownable.sol";
 import {TokenRegistry} from "./TokenRegistry.sol";
+import {AbstractReactive} from "reactive-lib/abstract-base/AbstractReactive.sol";
 
 error InvalidMixerAddress();
 error MixerAlreadyRegistered();
@@ -17,15 +18,23 @@ error InvalidRegistryAddress();
  * @dev Implements IAttackVectorDetector to plug into VedyxExploitDetectorRSC
  * @dev Monitors Transfer events to detect when addresses interact with known mixers
  */
-contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
+contract MixerInteractionDetector is AbstractReactive, IAttackVectorDetector, Ownable {
     // ─── Constants ────────────────────────────────────────────────────────
-    uint256 private constant TOPIC_TRANSFER = 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef;
+    uint256 private constant TOPIC_TRANSFER =
+        0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef;
 
-    bytes32 private constant DETECTOR_ID = keccak256("MIXER_INTERACTION_DETECTOR_V1");
+    bytes32 private constant DETECTOR_ID =
+        keccak256("MIXER_INTERACTION_DETECTOR_V1");
+
+    /// @notice Gas limit for callback execution on the destination chain
+    uint64 private constant GAS_LIMIT = 1000000;
+
+    address public callbackContract; // destination-chain registry address
+    uint256 public destinationChainId;
 
     // ─── State ────────────────────────────────────────────────────────
     bool public active;
-    
+
     /// @notice Reference to shared TokenRegistry
     TokenRegistry public immutable registry;
 
@@ -39,7 +48,11 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
     address[] private mixerAddresses;
 
     // ─── Events ───────────────────────────────────────────────────────────
-    event MixerRegistered(address indexed mixerAddress, string name, uint256 timestamp);
+    event MixerRegistered(
+        address indexed mixerAddress,
+        string name,
+        uint256 timestamp
+    );
 
     event MixerUnregistered(address indexed mixerAddress, string name);
 
@@ -47,44 +60,43 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
     event DetectorDeactivated();
 
     event MixerInteractionDetected(
-        address indexed suspiciousAddress, address indexed mixerAddress, uint256 chainId, uint256 value, bool isDeposit
+        address indexed suspiciousAddress,
+        address indexed mixerAddress,
+        uint256 chainId,
+        uint256 value,
+        bool isDeposit
     );
 
     // ─── Constructor ──────────────────────────────────────────────────
     /**
      * @param _registry Address of the shared TokenRegistry
      */
-    constructor(address _registry) Ownable() {
+    constructor(address _registry, address _callbackContract_, uint256 _destinationChainId_) payable Ownable() {
         if (_registry == address(0)) revert InvalidRegistryAddress();
         registry = TokenRegistry(_registry);
         active = true;
+        callbackContract = _callbackContract_;
+        destinationChainId = _destinationChainId_;
         _registerDefaultMixers();
+
     }
 
     // ─── IAttackVectorDetector Implementation ─────────────────────────────
     /**
      * @notice Analyzes a log record for mixer interaction patterns
      * @param log The log record to analyze
-     * @return detected Whether a threat was detected
-     * @return suspiciousAddress The address flagged as suspicious
-     * @return payload The encoded callback payload
      */
-    function detect(IReactive.LogRecord calldata log)
-        external
-        view
-        override
-        returns (bool detected, address suspiciousAddress, bytes memory payload)
-    {
+    function react(IReactive.LogRecord calldata log) external override vmOnly {
         if (!active) {
-            return (false, address(0), "");
+            return;
         }
 
         if (log.topic_0 != TOPIC_TRANSFER) {
-            return (false, address(0), "");
+            return;
         }
 
         if (log.data.length < 32) {
-            return (false, address(0), "");
+            return;
         }
 
         address from = address(uint160(log.topic_1));
@@ -99,7 +111,7 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
         // Check mixer interaction
         if (knownMixers[from].isRegistered) {
             // Withdrawal from mixer - flag recipient
-            payload = abi.encodeWithSignature(
+            bytes memory payload = abi.encodeWithSignature(
                 "tagSuspicious(address,uint256,address,uint256,uint256,uint256,bytes32)",
                 to,
                 log.chain_id,
@@ -109,12 +121,17 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
                 log.tx_hash,
                 DETECTOR_ID
             );
-            return (true, to, payload);
+            emit Callback(
+                destinationChainId,
+                callbackContract,
+                GAS_LIMIT,
+                payload
+            );
         }
 
         if (knownMixers[to].isRegistered) {
             // Deposit to mixer - flag sender
-            payload = abi.encodeWithSignature(
+            bytes memory payload = abi.encodeWithSignature(
                 "tagSuspicious(address,uint256,address,uint256,uint256,uint256,bytes32)",
                 from,
                 log.chain_id,
@@ -124,10 +141,13 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
                 log.tx_hash,
                 DETECTOR_ID
             );
-            return (true, from, payload);
+            emit Callback(
+                destinationChainId,
+                callbackContract,
+                GAS_LIMIT,
+                payload
+            );
         }
-
-        return (false, address(0), "");
     }
 
     /**
@@ -160,11 +180,19 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
      * @param mixerAddress The address of the mixer contract
      * @param name Human-readable name for the mixer (e.g., "Tornado Cash 0.1 ETH")
      */
-    function registerMixer(address mixerAddress, string calldata name) external onlyOwner {
+    function registerMixer(
+        address mixerAddress,
+        string calldata name
+    ) external onlyOwner {
         if (mixerAddress == address(0)) revert InvalidMixerAddress();
-        if (knownMixers[mixerAddress].isRegistered) revert MixerAlreadyRegistered();
+        if (knownMixers[mixerAddress].isRegistered)
+            revert MixerAlreadyRegistered();
 
-        knownMixers[mixerAddress] = MixerInfo({isRegistered: true, name: name, addedTimestamp: block.timestamp});
+        knownMixers[mixerAddress] = MixerInfo({
+            isRegistered: true,
+            name: name,
+            addedTimestamp: block.timestamp
+        });
 
         mixerAddresses.push(mixerAddress);
 
@@ -176,8 +204,14 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
      * @param mixerAddressList Array of mixer addresses
      * @param names Array of names corresponding to each mixer
      */
-    function registerMixerBatch(address[] calldata mixerAddressList, string[] calldata names) external onlyOwner {
-        require(mixerAddressList.length == names.length, "Array length mismatch");
+    function registerMixerBatch(
+        address[] calldata mixerAddressList,
+        string[] calldata names
+    ) external onlyOwner {
+        require(
+            mixerAddressList.length == names.length,
+            "Array length mismatch"
+        );
 
         for (uint256 i = 0; i < mixerAddressList.length; i++) {
             address mixerAddress = mixerAddressList[i];
@@ -185,7 +219,11 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
             if (mixerAddress == address(0)) revert InvalidMixerAddress();
             if (knownMixers[mixerAddress].isRegistered) continue;
 
-            knownMixers[mixerAddress] = MixerInfo({isRegistered: true, name: names[i], addedTimestamp: block.timestamp});
+            knownMixers[mixerAddress] = MixerInfo({
+                isRegistered: true,
+                name: names[i],
+                addedTimestamp: block.timestamp
+            });
 
             mixerAddresses.push(mixerAddress);
 
@@ -240,7 +278,9 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
      * @return name The name of the mixer (empty if not registered)
      * @return addedTimestamp When the mixer was added
      */
-    function getMixerInfo(address mixerAddress)
+    function getMixerInfo(
+        address mixerAddress
+    )
         external
         view
         returns (bool isRegistered, string memory name, uint256 addedTimestamp)
@@ -280,18 +320,101 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
      * @dev Called during construction to populate initial mixer list
      */
     function _registerDefaultMixers() private {
-        _addMixer(0x12D66f87A04A9E220743712cE6d9bB1B5616B8Fc, "Tornado Cash 0.1 ETH");
-        _addMixer(0x47CE0C6eD5B0Ce3d3A51fdb1C52DC66a7c3c2936, "Tornado Cash 1 ETH");
-        _addMixer(0x910Cbd523D972eb0a6f4cAe4618aD62622b39DbF, "Tornado Cash 10 ETH");
-        _addMixer(0xA160cdAB225685dA1d56aa342Ad8841c3b53f291, "Tornado Cash 100 ETH");
-        _addMixer(0xD4B88Df4D29F5CedD6857912842cff3b20C8Cfa3, "Tornado Cash 100 DAI");
-        _addMixer(0xFD8610d20aA15b7B2E3Be39B396a1bC3516c7144, "Tornado Cash 1000 DAI");
-        _addMixer(0xF60dD140cFf0706bAE9Cd734Ac3ae76AD9eBC32A, "Tornado Cash 10000 DAI");
-        _addMixer(0x22aaA7720ddd5388A3c0A3333430953C68f1849b, "Tornado Cash 100000 DAI");
-        _addMixer(0xBA214C1c1928a32Bffe790263E38B4Af9bFCD659, "Tornado Cash 100 USDC");
-        _addMixer(0xb1C8094B234DcE6e03f10a5b673c1d8C69739A00, "Tornado Cash 1000 USDC");
-        _addMixer(0x527653eA119F3E6a1F5BD18fbF4714081D7B31ce, "Tornado Cash 100 USDT");
-        _addMixer(0x0836222F2B2B24A3F36f98668Ed8F0B38D1a872f, "Tornado Cash 1000 USDT");
+        _addMixer(
+            0x12D66f87A04A9E220743712cE6d9bB1B5616B8Fc,
+            "Tornado Cash 0.1 ETH"
+        );
+        _addMixer(
+            0x47CE0C6eD5B0Ce3d3A51fdb1C52DC66a7c3c2936,
+            "Tornado Cash 1 ETH"
+        );
+        _addMixer(
+            0x910Cbd523D972eb0a6f4cAe4618aD62622b39DbF,
+            "Tornado Cash 10 ETH"
+        );
+        _addMixer(
+            0xA160cdAB225685dA1d56aa342Ad8841c3b53f291,
+            "Tornado Cash 100 ETH"
+        );
+        _addMixer(
+            0xD4B88Df4D29F5CedD6857912842cff3b20C8Cfa3,
+            "Tornado Cash 100 DAI"
+        );
+        _addMixer(
+            0xFD8610d20aA15b7B2E3Be39B396a1bC3516c7144,
+            "Tornado Cash 1000 DAI"
+        );
+        _addMixer(
+            0xF60dD140cFf0706bAE9Cd734Ac3ae76AD9eBC32A,
+            "Tornado Cash 10000 DAI"
+        );
+        _addMixer(
+            0x22aaA7720ddd5388A3c0A3333430953C68f1849b,
+            "Tornado Cash 100000 DAI"
+        );
+        _addMixer(
+            0xBA214C1c1928a32Bffe790263E38B4Af9bFCD659,
+            "Tornado Cash 100 USDC"
+        );
+        _addMixer(
+            0xb1C8094B234DcE6e03f10a5b673c1d8C69739A00,
+            "Tornado Cash 1000 USDC"
+        );
+        _addMixer(
+            0x527653eA119F3E6a1F5BD18fbF4714081D7B31ce,
+            "Tornado Cash 100 USDT"
+        );
+        _addMixer(
+            0x0836222F2B2B24A3F36f98668Ed8F0B38D1a872f,
+            "Tornado Cash 1000 USDT"
+        );
+    }
+
+    // ─── Subscription management ─────────────────────────────────────────
+    /**
+     * @notice Dynamically subscribes to events from a contract on a specified chain
+     * @dev Allows the contract owner to add new event subscriptions at runtime.
+     * Restricted to Reactive Network calls only.
+     * @param chain_id The chain ID where the contract to monitor is deployed
+     * @param contract_address The address of the contract to monitor
+     * @param topic_0 The event signature hash to subscribe to
+     */
+    function subscribe(
+        uint256 chain_id,
+        address contract_address,
+        uint256 topic_0
+    ) external rnOnly onlyOwner {
+        service.subscribe(
+            chain_id,
+            contract_address,
+            topic_0,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE
+        );
+    }
+
+    /**
+     * @notice Dynamically unsubscribes from events for a specific contract and event type
+     * @dev Allows the contract owner to remove event subscriptions at runtime.
+     * Restricted to Reactive Network calls only.
+     * @param chain_id The chain ID of the monitored contract
+     * @param contract_address The address of the monitored contract
+     * @param topic_0 The event signature hash to unsubscribe from
+     */
+    function unsubscribe(
+        uint256 chain_id,
+        address contract_address,
+        uint256 topic_0
+    ) external rnOnly onlyOwner {
+        service.unsubscribe(
+            chain_id,
+            contract_address,
+            topic_0,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE
+        );
     }
 
     /**
@@ -300,7 +423,11 @@ contract MixerInteractionDetector is IAttackVectorDetector, Ownable {
      * @param name The name of the mixer
      */
     function _addMixer(address mixerAddress, string memory name) private {
-        knownMixers[mixerAddress] = MixerInfo({isRegistered: true, name: name, addedTimestamp: block.timestamp});
+        knownMixers[mixerAddress] = MixerInfo({
+            isRegistered: true,
+            name: name,
+            addedTimestamp: block.timestamp
+        });
         mixerAddresses.push(mixerAddress);
 
         emit MixerRegistered(mixerAddress, name, block.timestamp);

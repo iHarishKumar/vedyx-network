@@ -1,0 +1,16 @@
+{
+  "network": "reactive-network",
+  "chainId": 5318007,
+  "contracts": {
+    "tokenRegistry": "0x009949c1C23c46083B4F1D0873d2256fe01ac436",
+    "largeTransferDetector": "0xF833D6F22F224a12648E2dB737BFFF31832A082f",
+    "mixerInteractionDetector": "0x6b1a0Eaa32eaf368E4840033b4E3Af9fA95e0D13",
+    "tracePeelChainDetector": "0x5920Fa3964dc10BB7bdEA2f9cB01D21362C91aDd"
+  },
+  "configuration": {
+    "votingContract": "0x4958A6535f634f4109e6ca4D27A2E7E55c6A6fA6",
+    "destinationChainId": 1301,
+    "originChainId": 1301
+  },
+  "timestamp": 1773986329
+}

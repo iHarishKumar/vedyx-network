@@ -11,18 +11,6 @@ import {IReactive} from "reactive-lib/interfaces/IReactive.sol";
  */
 interface IAttackVectorDetector {
     /**
-     * @notice Analyzes a log record and returns detection results
-     * @dev Can be view (stateless) or non-view (stateful) depending on detector implementation
-     * @param log The log record to analyze
-     * @return detected Whether a threat was detected
-     * @return suspiciousAddress The address flagged as suspicious (if detected)
-     * @return payload The encoded callback payload to send to the destination chain
-     */
-    function detect(IReactive.LogRecord calldata log)
-        external
-        returns (bool detected, address suspiciousAddress, bytes memory payload);
-
-    /**
      * @notice Returns the event topic_0 that this detector monitors
      * @return The topic_0 hash this detector is interested in
      */

@@ -1,4 +1,4 @@
-# Vedyx Protocol
+# Vedyx Network
 
 > **Decentralized Threat Detection & Community-Driven Security for DeFi**
 
@@ -8,7 +8,7 @@ Vedyx is a cross-chain security protocol that combines **real-time exploit detec
 
 ## 🎯 Overview
 
-Vedyx Protocol consists of three core modules working together to create a comprehensive security layer for DeFi:
+Vedyx Network consists of three core modules working together to create a comprehensive security layer for DeFi:
 
 1. **Reactive Detectors** - Real-time exploit pattern detection on Reactive Network
 2. **Voting Contract** - Community-driven validation with stake-based governance
@@ -186,7 +186,7 @@ Risk assessment engine and Uniswap V4 integration for dynamic fee management and
 
 **Location**: [`frontend/`](./frontend/)
 
-User interface for interacting with the Vedyx Protocol.
+User interface for interacting with the Vedyx Network.
 
 **Features**:
 - 📊 Dashboard for viewing active votings and verdicts
@@ -226,8 +226,8 @@ Subgraph for indexing voting contract events and providing efficient data querie
 
 ```bash
 # Clone the repository
-git clone https://github.com/vedyx/vedyx-protocol.git
-cd vedyx-protocol
+git clone https://github.com/vedyx/vedyx-network.git
+cd vedyx-network
 
 # Install contract dependencies
 cd contracts
@@ -385,7 +385,7 @@ forge test --match-contract TracePeelChainDetectorTest
 ### Project Structure
 
 ```
-vedyx-protocol/
+vedyx-network/
 ├── contracts/              # Smart contracts (Foundry)
 │   ├── src/
 │   │   ├── reactive-contracts/    # Reactive Network detectors
@@ -419,10 +419,9 @@ This project is licensed under the MIT License - see the [LICENSE](./LICENSE) fi
 
 ## 🔗 Links
 
-- **Documentation**: [docs.vedyx.io](https://docs.vedyx.io) (Coming soon)
-- **Website**: [vedyx.io](https://vedyx.io) (Coming soon)
-- **Twitter**: [@VedyxProtocol](https://twitter.com/VedyxProtocol) (Coming soon)
-- **Discord**: [discord.gg/vedyx](https://discord.gg/vedyx) (Coming soon)
+- **Documentation**: [docs.vedyx.io](https://github.com/iHarishKumar/vedyx-network/)
+- **Website**: [vedyx.io](https://vedyx-network.vercel.app/)
+- **X (Formerly Twitter)**: [@VedyxNetwork](https://x.com/HarishGunjalli)
 
 ---
 
